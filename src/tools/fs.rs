@@ -39,7 +39,8 @@ impl Tool for ReadTool {
 
     fn description(&self) -> &'static str {
         "Read a text file and return its contents with 1-based line numbers. Use `offset` and \
-         `limit` to page through large files."
+         `limit` to page through large files. Very long lines are truncated, and the whole \
+         response is capped, so a binary-ish or minified file cannot flood the conversation."
     }
 
     fn schema(&self) -> Value {
@@ -62,19 +63,47 @@ impl Tool for ReadTool {
 
         let offset = arg_u64_opt(&args, "offset").unwrap_or(1).max(1) as usize;
         let limit = arg_u64_opt(&args, "limit").unwrap_or(2000) as usize;
+        let budget = self.ctx.config.tool_output_limit;
 
         let total = content.lines().count();
         let mut out = String::new();
+        let mut long_lines = 0usize;
+        let mut truncated_total = false;
+
         for (i, line) in content.lines().enumerate().skip(offset - 1).take(limit) {
-            out.push_str(&format!("{:>6}: {}\n", i + 1, line));
+            let per_line = budget / 4;
+            let shown = if line.len() > per_line {
+                long_lines += 1;
+                truncate_end(line, per_line)
+            } else {
+                line.to_string()
+            };
+            if out.len() + shown.len() + 16 > budget {
+                truncated_total = true;
+                break;
+            }
+            out.push_str(&format!("{:>6}: {}\n", i + 1, shown));
         }
+
         if out.is_empty() {
             return Ok(format!("(no lines at offset {offset}; file has {total})"));
         }
-        if offset - 1 + limit < total {
+        if truncated_total {
+            out.push_str(&format!(
+                "\n[... output cap reached; continue at offset {} or narrow the range ...]",
+                offset + out.lines().count()
+            ));
+        }
+        if long_lines > 0 {
+            out.push_str(&format!(
+                "\n[... {long_lines} line(s) were individually truncated ...]"
+            ));
+        }
+        let shown_lines = out.lines().count();
+        if offset - 1 + shown_lines < total {
             out.push_str(&format!(
                 "\n[... {} more lines; file has {total} ...]",
-                total - (offset - 1 + limit)
+                total - (offset - 1 + shown_lines)
             ));
         }
         Ok(out)
@@ -432,7 +461,7 @@ impl Tool for GrepTool {
 
             for (i, line) in text.lines().enumerate() {
                 if re.is_match(line) {
-                    hits.push(format!("{rel}:{}: {}", i + 1, line.trim()));
+                    hits.push(format!("{rel}:{}: {}", i + 1, truncate_end(line.trim(), 400)));
                     if hits.len() >= limit {
                         break 'outer;
                     }
@@ -501,7 +530,72 @@ fn glob_match(pattern: &str, text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::glob_match;
+    use super::{glob_match, ReadTool};
+    use crate::tools::{Tool, ToolContext};
+    use std::sync::Arc;
+
+    fn ctx(workspace: &std::path::Path, output_limit: usize) -> ToolContext {
+        let mut cfg = crate::config::AgentConfig::default();
+        cfg.tool_output_limit = output_limit;
+        ToolContext {
+            config: Arc::new(cfg),
+            workspace: workspace.to_path_buf(),
+            depth: 0,
+            notes: crate::tools::notes::Notes::default(),
+            spawner: None,
+        }
+    }
+
+    fn scratch(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("soracode-fs-{tag}"));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[tokio::test]
+    async fn read_caps_a_single_giant_line() {
+        let dir = scratch("giantline");
+        let file = dir.join("one-line.txt");
+        std::fs::write(&file, "A".repeat(500_000)).unwrap();
+        let budget = 4096;
+        let out = ReadTool {
+            ctx: ctx(&dir, budget),
+        }
+        .run(serde_json::json!({ "path": file.to_string_lossy() }))
+        .await
+        .unwrap();
+
+        assert!(
+            out.len() < budget,
+            "giant single line leaked {} bytes into the response",
+            out.len()
+        );
+        assert!(out.contains("truncated"), "no truncation notice: {out}");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn read_caps_total_output_across_many_lines() {
+        let dir = scratch("manylines");
+        let file = dir.join("many.txt");
+        let body: String = (0..5000).map(|i| format!("line {i} xxxxxxxx\n")).collect();
+        std::fs::write(&file, body).unwrap();
+        let budget = 4096;
+        let out = ReadTool {
+            ctx: ctx(&dir, budget),
+        }
+        .run(serde_json::json!({ "path": file.to_string_lossy(), "limit": 5000 }))
+        .await
+        .unwrap();
+
+        assert!(
+            out.len() < budget + 256,
+            "many-line file leaked {} bytes",
+            out.len()
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
 
     #[test]
     fn glob_star_within_segment() {
