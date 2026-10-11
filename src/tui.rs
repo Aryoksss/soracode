@@ -230,7 +230,7 @@ impl App {
 
     fn draw_header(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
         let title = Paragraph::new(Line::from(vec![
-            Span::styled(" harness ", Style::default().fg(Color::Black).bg(Color::Cyan)),
+            Span::styled(" soracode ", Style::default().fg(Color::Black).bg(Color::Cyan)),
             Span::raw("  security execution engine"),
         ]));
         f.render_widget(title, area);

@@ -1,8 +1,8 @@
-//! `harness` — a lightweight, fully operator-controlled security agent.
+//! `soracode` — a lightweight, fully operator-controlled security agent.
 //!
 //! The binary has two modes:
-//!   * one-shot CLI: `harness -i "instruction"`
-//!   * interactive TUI: `harness` (or `harness -i` and keep typing)
+//!   * one-shot CLI: `soracode -i "instruction"`
+//!   * interactive TUI: `soracode` (or `soracode -i` and keep typing)
 
 mod agent;
 mod config;
@@ -28,7 +28,7 @@ use crate::session::Session;
 
 /// A lightweight, fully operator-controlled security agent.
 #[derive(Parser, Debug)]
-#[command(name = "harness", version, about, long_about = None)]
+#[command(name = "soracode", version, about, long_about = None)]
 struct Cli {
     /// Instruction to execute. May be given multiple times.
     #[arg(short = 'i', long = "instruction")]
@@ -82,7 +82,7 @@ struct Cli {
 #[tokio::main(flavor = "multi_thread")]
 async fn main() {
     if let Err(e) = run().await {
-        eprintln!("harness: {e}");
+        eprintln!("soracode: {e}");
         std::process::exit(1);
     }
 }
@@ -156,7 +156,7 @@ async fn run() -> Result<()> {
     )?;
 
     eprintln!(
-        "harness: session {} | model {} | workspace {}",
+        "soracode: session {} | model {} | workspace {}",
         session.id(),
         cfg.llm.model,
         cfg.agent().workspace.display()

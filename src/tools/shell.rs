@@ -53,7 +53,7 @@ impl Tool for ShellTool {
                 },
                 "timeout_secs": {
                     "type": "integer",
-                    "description": "Kill the command after this many seconds. Defaults to the harness tool timeout."
+                    "description": "Kill the command after this many seconds. Defaults to the soracode tool timeout."
                 },
                 "background": {
                     "type": "boolean",

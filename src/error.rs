@@ -1,11 +1,11 @@
-//! Error types shared across the harness.
+//! Error types shared across soracode.
 
 use thiserror::Error;
 
 /// Result alias used throughout the crate.
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Top-level error for the harness.
+/// Top-level error for soracode.
 #[derive(Debug, Error)]
 pub enum Error {
     /// Configuration could not be loaded or was invalid.

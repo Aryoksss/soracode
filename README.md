@@ -1,4 +1,4 @@
-# harness
+# soracode
 
 A lightweight, fully operator-controlled security agent in Rust.
 
@@ -12,26 +12,26 @@ behavior.
 cargo build --release
 ```
 
-Output is a single ~5 MB binary at `target/release/harness`.
+Output is a single ~5 MB binary at `target/release/soracode`.
 
 ## Usage
 
 ```sh
 # one-shot, streams to stdout
-harness -n -i "scan example.com and report open ports"
+soracode -n -i "scan example.com and report open ports"
 
 # interactive TUI
-harness
+soracode
 
 # target shorthand, equivalent to appending "Target: example.com"
-harness -n -t example.com -i "enumerate the web app"
+soracode -n -t example.com -i "enumerate the web app"
 
 # list and resume sessions
-harness --sessions
-harness --resume a0a3cb94
+soracode --sessions
+soracode --resume a0a3cb94
 
 # inspect the exact system prompt
-harness --print-prompt
+soracode --print-prompt
 ```
 
 ## Configuration
@@ -39,10 +39,10 @@ harness --print-prompt
 Highest precedence wins:
 
 1. CLI flags
-2. `HARNESS_BASE_URL`, `HARNESS_API_KEY`, `HARNESS_MODEL`
+2. `SORACODE_BASE_URL`, `SORACODE_API_KEY`, `SORACODE_MODEL`
 3. `--config <file>`
-4. `./harness.toml`
-5. `~/.config/harness/config.toml` or `config.json`
+4. `./soracode.toml`
+5. `~/.config/soracode/config.toml` or `config.json`
 6. built-in defaults
 
 A minimal config:
@@ -74,6 +74,6 @@ their instruction must be self-contained. Depth is capped by
 ## Sessions
 
 Transcripts, tool results, and notes live in SQLite at
-`~/.local/share/harness/sessions.db` (WAL mode). Every instruction, reply, and
+`~/.local/share/soracode/sessions.db` (WAL mode). Every instruction, reply, and
 tool result is persisted as it happens, so an engagement survives a crash or a
 closed terminal.

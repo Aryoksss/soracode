@@ -2,13 +2,13 @@
 //!
 //! Resolution order (later wins):
 //!   1. Built-in defaults
-//!   2. `~/.config/harness/config.toml`
-//!   3. `./harness.toml`
-//!   4. Environment variables (`HARNESS_*`)
+//!   2. `~/.config/soracode/config.toml`
+//!   3. `./soracode.toml`
+//!   4. Environment variables (`SORACODE_*`)
 //!   5. CLI flags
 //!
 //! There is deliberately **no allowlist / permission model** here: the operator
-//! running the harness is the authority. Any target or command given is executed.
+//! running soracode is the authority. Any target or command given is executed.
 
 use std::path::{Path, PathBuf};
 
@@ -103,7 +103,7 @@ fn default_tool_output() -> usize {
     60_000
 }
 
-/// Full harness configuration.
+/// Full soracode configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// LLM connection settings.
@@ -122,7 +122,7 @@ pub struct AgentConfigDefaults(#[serde(default)] pub AgentConfig);
 
 fn default_db() -> PathBuf {
     let mut p = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
-    p.push("harness");
+    p.push("soracode");
     p.push("sessions.db");
     p
 }
@@ -183,18 +183,18 @@ impl Config {
 
         // 2. user config
         if let Some(dir) = dirs::config_dir() {
-            let p = dir.join("harness").join("config.toml");
+            let p = dir.join("soracode").join("config.toml");
             if p.exists() {
                 cfg.merge_file(&p)?;
             }
-            let json = dir.join("harness").join("config.json");
+            let json = dir.join("soracode").join("config.json");
             if json.exists() {
                 cfg.merge_json(&json)?;
             }
         }
 
         // 3. project config
-        let local = PathBuf::from("harness.toml");
+        let local = PathBuf::from("soracode.toml");
         if local.exists() {
             cfg.merge_file(&local)?;
         }
@@ -285,13 +285,13 @@ impl Config {
     }
 
     fn merge_env(&mut self) {
-        if let Ok(v) = std::env::var("HARNESS_BASE_URL") {
+        if let Ok(v) = std::env::var("SORACODE_BASE_URL") {
             self.llm.base_url = v;
         }
-        if let Ok(v) = std::env::var("HARNESS_API_KEY") {
+        if let Ok(v) = std::env::var("SORACODE_API_KEY") {
             self.llm.api_key = v;
         }
-        if let Ok(v) = std::env::var("HARNESS_MODEL") {
+        if let Ok(v) = std::env::var("SORACODE_MODEL") {
             self.llm.model = v;
         }
     }
@@ -325,7 +325,7 @@ impl Config {
     pub fn validate(&self) -> Result<()> {
         if self.llm.api_key.trim().is_empty() {
             return Err(Error::Config(
-                "no API key: set HARNESS_API_KEY or llm.api_key in config".into(),
+                "no API key: set SORACODE_API_KEY or llm.api_key in config".into(),
             ));
         }
         if self.llm.base_url.trim().is_empty() {

@@ -1,6 +1,6 @@
 //! Minimal OpenAI-compatible chat client with SSE streaming.
 //!
-//! Only the surface the harness needs: streaming chat completions with tools.
+//! Only the surface soracode needs: streaming chat completions with tools.
 //! Everything else (responses API, embeddings, vision) is intentionally absent
 //! to keep the binary small.
 
