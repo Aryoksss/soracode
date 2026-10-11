@@ -189,7 +189,7 @@ impl Session {
         let mut stmt = conn.prepare(
             "SELECT s.id, s.created, COALESCE(s.cwd,''),
                     (SELECT COUNT(*) FROM entries e WHERE e.session_id = s.id)
-             FROM sessions s ORDER BY s.created DESC LIMIT ?1",
+             FROM sessions s ORDER BY s.created DESC, s.rowid DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit as i64], |r| {
             let id: String = r.get(0)?;
@@ -204,6 +204,14 @@ impl Session {
         }
         Ok(out)
     }
+
+    /// The newest session id in the database, if any exists.
+    ///
+    /// # Errors
+    /// Propagates database errors.
+    pub fn latest(path: &Path) -> Result<Option<String>> {
+        Ok(Self::list(path, 1)?.into_iter().next().map(|(id, _, _)| id))
+    }
 }
 
 fn now() -> i64 {
@@ -211,4 +219,35 @@ fn now() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Session;
+
+    fn temp_db(tag: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+        let dir = std::env::temp_dir().join(format!("soracode-session-{tag}"));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        (dir.clone(), dir.join("s.db"))
+    }
+
+    #[test]
+    fn latest_is_none_on_an_empty_database() {
+        let (dir, path) = temp_db("empty");
+        assert_eq!(Session::latest(&path).unwrap(), None);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn latest_returns_the_newest_session() {
+        let (dir, path) = temp_db("newest");
+        let a = Session::open(&path, None).unwrap();
+        a.append("user", "first", None).unwrap();
+        let b = Session::open(&path, None).unwrap();
+
+        let got = Session::latest(&path).unwrap();
+        assert_eq!(got.as_deref(), Some(b.id()));
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

@@ -32,6 +32,8 @@ enum Line2 {
 pub struct App {
     transcript: Vec<Line2>,
     input: String,
+    history: Vec<String>,
+    history_at: Option<usize>,
     status: String,
     scroll: u16,
     auto_scroll: bool,
@@ -56,6 +58,8 @@ impl App {
         Self {
             transcript: Vec::new(),
             input: String::new(),
+            history: Vec::new(),
+            history_at: None,
             status: "ready — type an instruction and press Enter".into(),
             scroll: 0,
             auto_scroll: true,
@@ -139,16 +143,46 @@ impl App {
             (KeyCode::Char('c'), KeyModifiers::CONTROL)
             | (KeyCode::Char('q'), KeyModifiers::CONTROL) => return true,
 
+            (KeyCode::Char('u'), KeyModifiers::CONTROL) => {
+                self.input.clear();
+                self.history_at = None;
+            }
+
             (KeyCode::Enter, _) => {
                 let text = self.input.trim().to_string();
                 if !text.is_empty() {
                     self.input.clear();
+                    self.history_at = None;
+                    if self.history.last() != Some(&text) {
+                        self.history.push(text.clone());
+                    }
                     self.transcript.push(Line2::User(text.clone()));
                     self.status = "running…".into();
                     self.auto_scroll = true;
                     on_submit(text, self.tx.clone());
                 }
             }
+            (KeyCode::Up, _) => {
+                if !self.history.is_empty() {
+                    let idx = match self.history_at {
+                        Some(i) => i.saturating_sub(1),
+                        None => self.history.len() - 1,
+                    };
+                    self.history_at = Some(idx);
+                    self.input = self.history[idx].clone();
+                }
+            }
+            (KeyCode::Down, _) => match self.history_at {
+                Some(i) if i + 1 < self.history.len() => {
+                    self.history_at = Some(i + 1);
+                    self.input = self.history[i + 1].clone();
+                }
+                Some(_) => {
+                    self.history_at = None;
+                    self.input.clear();
+                }
+                None => {}
+            },
             (KeyCode::Char(c), _) => self.input.push(c),
             (KeyCode::Backspace, _) => {
                 self.input.pop();

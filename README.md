@@ -33,6 +33,7 @@ soracode -n -t example.com -i "enumerate the web app"
 # list and resume sessions
 soracode --sessions
 soracode --resume a0a3cb94
+soracode --continue        # newest session, no id needed
 
 # inspect the exact system prompt
 soracode --print-prompt
@@ -213,3 +214,27 @@ Transcripts, tool results, and notes live in SQLite at
 `~/.local/share/soracode/sessions.db` (WAL mode). Every instruction, reply, and
 tool result is persisted as it happens, so an engagement survives a crash or a
 closed terminal.
+
+Resuming brings the conversation back, not just the id:
+
+```sh
+soracode --resume a0a3cb94   # by id, from --sessions
+soracode --continue          # the newest session in this database
+```
+
+Only the recent turns are replayed, because a long session would otherwise push
+the system prompt past the model's context window. Tool results are not replayed
+verbatim, since their request shape is not stored; the assistant text that
+followed them is.
+
+### TUI keys
+
+| Key | Action |
+| --- | --- |
+| `Enter` | submit the instruction |
+| `↑` / `↓` | walk back and forward through submitted instructions |
+| `Ctrl-U` | clear the input line |
+| `PageUp` / `PageDown` | scroll the transcript |
+| `End` | jump to the newest output and follow it |
+| `Ctrl-C` or `Ctrl-Q` | quit |
+

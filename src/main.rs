@@ -67,6 +67,10 @@ struct Cli {
     #[arg(long = "resume")]
     resume: Option<String>,
 
+    /// Resume the most recent session in this workspace.
+    #[arg(long = "continue", visible_alias = "cont")]
+    cont: bool,
+
     /// List recent sessions and exit.
     #[arg(long = "sessions")]
     sessions: bool,
@@ -266,7 +270,19 @@ async fn run() -> Result<()> {
         instruction.push_str(&format!("Target: {target}"));
     }
 
-    let session = Arc::new(Session::open(&cfg.db_path, cli.resume.as_deref())?);
+    let resume_id = match (cli.resume.as_deref(), cli.cont) {
+        (Some(id), _) => Some(id.to_string()),
+        (None, true) => match Session::latest(&cfg.db_path)? {
+            Some(id) => Some(id),
+            None => {
+                eprintln!("soracode: no previous session to continue");
+                return Ok(());
+            }
+        },
+        (None, false) => None,
+    };
+
+    let session = Arc::new(Session::open(&cfg.db_path, resume_id.as_deref())?);
     let cfg = Arc::new(cfg);
 
     let client = Client::new(
