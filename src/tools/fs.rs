@@ -521,3 +521,29 @@ mod tests {
         assert!(!glob_match("a?c", "a/c"));
     }
 }
+
+#[tokio::test]
+async fn glob_lists_every_match() {
+    use crate::config::AgentConfig;
+    use crate::tools::notes::Notes;
+    use serde_json::json;
+    use std::sync::Arc;
+
+    let dir = std::env::temp_dir().join("soracode-glob-integration");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    for f in ["one.txt", "two.txt", "three.txt", "four.md"] {
+        std::fs::write(dir.join(f), "x").unwrap();
+    }
+
+    let ctx = ToolContext {
+        config: Arc::new(AgentConfig::default()),
+        workspace: dir.clone(),
+        depth: 0,
+        notes: Notes::default(),
+        spawner: None,
+    };
+    let out = GlobTool::new(ctx).run(json!({"pattern": "*.txt"})).await.unwrap();
+    let got: Vec<&str> = out.lines().collect();
+    assert_eq!(got.len(), 3, "expected 3 .txt files, got {got:?}");
+}

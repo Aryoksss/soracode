@@ -354,7 +354,12 @@ async fn run_once(
                 }
                 AgentEvent::ToolEnd { name, output } => {
                     let first = output.lines().next().unwrap_or("");
-                    println!("\x1b[33m◀ {name}: {first}\x1b[0m");
+                    let extra = output.lines().count().saturating_sub(1);
+                    if extra > 0 {
+                        println!("\x1b[33m◀ {name}: {first}  (+{extra} more lines)\x1b[0m");
+                    } else {
+                        println!("\x1b[33m◀ {name}: {first}\x1b[0m");
+                    }
                 }
                 AgentEvent::SubagentStart { label } => {
                     println!("\x1b[36m⇢ subagent `{label}`\x1b[0m");

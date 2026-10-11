@@ -185,8 +185,13 @@ impl App {
             }
             AgentEvent::ToolEnd { name, output } => {
                 let first = output.lines().next().unwrap_or("").to_string();
-                self.transcript
-                    .push(Line2::Info(format!("◀ {name}: {first}")));
+                let extra = output.lines().count().saturating_sub(1);
+                let text = if extra > 0 {
+                    format!("◀ {name}: {first}  (+{extra} more lines)")
+                } else {
+                    format!("◀ {name}: {first}")
+                };
+                self.transcript.push(Line2::Info(text));
             }
             AgentEvent::SubagentStart { label } => {
                 self.transcript
