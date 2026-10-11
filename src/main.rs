@@ -8,6 +8,7 @@ mod agent;
 mod config;
 mod error;
 mod llm;
+mod models;
 mod prompt;
 mod session;
 mod tools;
@@ -42,7 +43,7 @@ struct Cli {
     #[arg(short = 't', long = "target")]
     target: Option<String>,
 
-    /// Model override, e.g. `gh/gpt-4.1`.
+    /// Model override. Either a name from the models file or a raw model string.
     #[arg(short = 'm', long = "model")]
     model: Option<String>,
 
@@ -78,6 +79,14 @@ struct Cli {
     #[arg(long = "rescan")]
     rescan: bool,
 
+    /// List configured models and providers, then exit.
+    #[arg(long = "models")]
+    models: bool,
+
+    /// Write a starter models file to the user config directory.
+    #[arg(long = "init-models")]
+    init_models: bool,
+
     /// Do not start the TUI; print events to stdout and exit.
     #[arg(short = 'n', long = "non-interactive")]
     non_interactive: bool,
@@ -95,10 +104,71 @@ async fn main() {
     }
 }
 
+/// Show what models are configured and which one is active.
+fn print_models(cfg: &Config) {
+    let active = cfg.selection(None);
+
+    if cfg.models.is_empty() {
+        println!("No named models configured.\n");
+        println!("  active: {} (from [llm], no models file)", cfg.llm.model);
+        println!("  base:   {}", cfg.llm.base_url);
+        println!("\nCreate a starter file with:  soracode --init-models");
+        println!("It is read from: {}", models::models_path().display());
+        return;
+    }
+
+    println!("Providers:");
+    for (name, p) in &cfg.providers {
+        let key = if p.api_key.is_empty() { "no key" } else { "key set" };
+        println!("  {name:<16} {:<44} ({key})", p.base_url);
+    }
+
+    println!("\nModels:");
+    for (name, m) in &cfg.models {
+        let mark = match &active {
+            crate::config::ModelSelection::Named(n) if n == name => "*",
+            _ => " ",
+        };
+        let mut notes = Vec::new();
+        if let Some(v) = m.max_tokens {
+            notes.push(format!("max_tokens={v}"));
+        }
+        if let Some(v) = m.temperature {
+            notes.push(format!("temp={v}"));
+        }
+        if let Some(v) = m.timeout_secs {
+            notes.push(format!("timeout={v}s"));
+        }
+        let suffix = if notes.is_empty() {
+            String::new()
+        } else {
+            format!("  [{}]", notes.join(", "))
+        };
+        println!(" {mark} {name:<16} {:<28} via {}{suffix}", m.model, m.provider);
+    }
+
+    let default = cfg.default_model.as_deref().unwrap_or("<none>");
+    println!("\n  default_model = {default}");
+
+    match &active {
+        crate::config::ModelSelection::Named(_) => {
+            println!("  ( * marks the model a plain run would use )");
+        }
+        crate::config::ModelSelection::Default => {
+            println!(
+                "  warning: default_model `{default}` is not defined; \
+                 a plain run falls back to llm.model = {}",
+                cfg.llm.model
+            );
+        }
+        crate::config::ModelSelection::Literal(_) | crate::config::ModelSelection::Unknown(_) => {}
+    }
+}
+
 async fn run() -> Result<()> {
     let cli = Cli::parse();
 
-    let mut cfg = Config::load(cli.config.as_deref())?;
+    let mut cfg = Config::load_with_models(cli.config.as_deref())?;
     cfg.apply_overrides(
         cli.base_url.clone(),
         cli.api_key.clone(),
@@ -106,11 +176,33 @@ async fn run() -> Result<()> {
         cli.workspace.clone(),
     );
 
+    if cli.init_models {
+        let path = models::models_path();
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir)?;
+        }
+        if path.exists() {
+            eprintln!("soracode: {} already exists, leaving it alone", path.display());
+        } else {
+            std::fs::write(&path, models::starter_models_toml())?;
+            eprintln!("soracode: wrote {}", path.display());
+        }
+        return Ok(());
+    }
+
+    if cli.models {
+        print_models(&cfg);
+        return Ok(());
+    }
+
     if cli.print_prompt {
         let inventory = tools::catalog::inventory().await;
+        let active = cfg
+            .resolve(cli.model.as_deref())
+            .map_or_else(|_| cfg.llm.model.clone(), |r| r.name);
         let env = prompt::environment_block_with_tools(
             &cfg.agent().workspace,
-            &cfg.llm.model,
+            &active,
             "preview",
             0,
             Some(&inventory),
@@ -147,7 +239,7 @@ async fn run() -> Result<()> {
         return Ok(());
     }
 
-    cfg.validate()?;
+    cfg.validate(cli.model.as_deref())?;
 
     if cli.rescan || tools::catalog::load_cache().is_none() {
         let inv = tools::catalog::rescan().await;
@@ -155,6 +247,8 @@ async fn run() -> Result<()> {
             eprintln!("soracode: {}", tools::catalog::summarize(&inv));
         }
     }
+
+    let resolved = cfg.resolve(cli.model.as_deref())?;
 
     // Assemble the instruction.
     let mut instruction = cli.instruction.join("\n\n");
@@ -176,19 +270,20 @@ async fn run() -> Result<()> {
     let cfg = Arc::new(cfg);
 
     let client = Client::new(
-        &cfg.llm.base_url,
-        &cfg.llm.api_key,
-        &cfg.llm.model,
-        cfg.llm.max_tokens,
-        cfg.llm.temperature,
-        cfg.llm.timeout_secs,
-        cfg.llm.headers.clone(),
+        &resolved.base_url,
+        &resolved.api_key,
+        &resolved.model,
+        resolved.max_tokens,
+        resolved.temperature,
+        resolved.timeout_secs,
+        resolved.headers.clone(),
     )?;
 
     eprintln!(
-        "soracode: session {} | model {} | workspace {}",
+        "soracode: session {} | model {} via {} | workspace {}",
         session.id(),
-        cfg.llm.model,
+        resolved.name,
+        resolved.provider,
         cfg.agent().workspace.display()
     );
 

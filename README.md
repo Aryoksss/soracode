@@ -6,6 +6,10 @@ One static binary, no runtime to install. The prompt and the tool layer belong
 to this project, so the operator's instruction is the only thing that governs
 behavior.
 
+The multi-provider layout follows [Cybermes](https://github.com/Zyrexnn/Cybermes),
+which separates a provider (endpoint plus key) from the model running on it.
+Soracode keeps that separation in one `models.toml` rather than a `.env`.
+
 ## Build
 
 ```sh
@@ -39,13 +43,13 @@ soracode --print-prompt
 Highest precedence wins:
 
 1. CLI flags
-2. `SORACODE_BASE_URL`, `SORACODE_API_KEY`, `SORACODE_MODEL`
+2. `SORACODE_BASE_URL`, `SORACODE_API_KEY`, `SORACODE_MODEL`, `SORACODE_DEFAULT_MODEL`
 3. `--config <file>`
-4. `./soracode.toml`
-5. `~/.config/soracode/config.toml` or `config.json`
+4. `./soracode.toml`, `./soracode.models.toml`
+5. `~/.config/soracode/config.toml` or `config.json`, `models.toml`
 6. built-in defaults
 
-A minimal config:
+A minimal config, kept for compatibility:
 
 ```toml
 [llm]
@@ -56,6 +60,74 @@ model    = "gh/gpt-4.1"
 [agent]
 workspace = "/home/user/target"
 ```
+
+## Models
+
+Flat `[llm]` settings hold one endpoint, one key, and one model. That is fine
+until you want a second model, and then the endpoint and key have to be
+repeated. Named providers and models fix that: a provider is an endpoint plus a
+key, and a model points at a provider.
+
+```sh
+soracode --init-models      # write ~/.config/soracode/models.toml
+soracode --models           # show what is configured and which is active
+```
+
+```toml
+default_model = "fast"
+
+[providers.router]
+base_url = "https://9router.aryoks.tech/v1"
+api_key  = "sk-..."
+
+[providers.local]
+base_url = "http://127.0.0.1:1234/v1"
+api_key  = "lm-studio"          # ignored servers can put anything here
+
+[models.fast]
+provider = "router"
+model    = "gh/gpt-4.1"
+
+[models.smart]
+provider   = "router"
+model      = "kr/deepseek-3.2"
+max_tokens = 32768
+temperature = 0.2               # per-model overrides win over the globals
+
+[models.offline]
+provider = "local"
+model    = "qwen2.5-coder-32b"
+```
+
+Add a model by adding a block. Point it at another provider by changing one
+word. Remove it by deleting the block. No code, rebuild, or restart is
+involved, because the file is read at startup.
+
+Switching is a single flag:
+
+```sh
+soracode -m fast     # name from models.toml
+soracode -m smart
+soracode -m gh/gpt-4.1   # a raw model string still works
+```
+
+The header names the model and where it came from, so a run is never ambiguous:
+
+```
+soracode: session 85659c60 | model gh/gpt-4o-mini via <inline> | workspace /w
+```
+
+Names are checked against the file, so a misspelling is reported locally rather
+than as a confusing `404` from the provider:
+
+```
+soracode: unknown model `fst`; configured models: fast, smart, offline.
+          Use `literal:fst` to send it verbatim.
+```
+
+A name containing `/` or `:` is always treated as a raw model string, and
+`literal:` forces that for any name. With no models file, every `--model` value
+is literal and behavior is unchanged.
 
 ## Tools
 

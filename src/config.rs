@@ -10,6 +10,7 @@
 //! There is deliberately **no allowlist / permission model** here: the operator
 //! running soracode is the authority. Any target or command given is executed.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -103,10 +104,68 @@ fn default_tool_output() -> usize {
     60_000
 }
 
+impl LlmConfig {
+    /// Overlay a partial `[llm]` block, treating empty strings as absent.
+    pub fn overlay(&mut self, o: &Self) {
+        if !o.base_url.is_empty() {
+            self.base_url.clone_from(&o.base_url);
+        }
+        if !o.api_key.is_empty() {
+            self.api_key.clone_from(&o.api_key);
+        }
+        if !o.model.is_empty() {
+            self.model.clone_from(&o.model);
+        }
+        if o.max_tokens != 0 {
+            self.max_tokens = o.max_tokens;
+        }
+        if o.temperature != 0.0 {
+            self.temperature = o.temperature;
+        }
+        if o.timeout_secs != 0 {
+            self.timeout_secs = o.timeout_secs;
+        }
+        self.headers.extend(o.headers.clone());
+    }
+}
+
+impl AgentConfig {
+    /// Overlay a partial `[agent]` block, treating sentinel values as absent.
+    pub fn overlay(&mut self, o: &Self) {
+        if o.max_turns != 0 {
+            self.max_turns = o.max_turns;
+        }
+        if o.max_seconds != 0 {
+            self.max_seconds = o.max_seconds;
+        }
+        if o.workspace != default_workspace() {
+            self.workspace.clone_from(&o.workspace);
+        }
+        if o.system_prompt_file.is_some() {
+            self.system_prompt_file.clone_from(&o.system_prompt_file);
+        }
+        if o.subagents_enabled {
+            self.subagents_enabled = true;
+        }
+        if o.subagent_max_depth != 0 {
+            self.subagent_max_depth = o.subagent_max_depth;
+        }
+        if o.subagent_max_parallel != 0 {
+            self.subagent_max_parallel = o.subagent_max_parallel;
+        }
+        if o.tool_timeout_secs != 0 {
+            self.tool_timeout_secs = o.tool_timeout_secs;
+        }
+        if o.tool_output_limit != 0 {
+            self.tool_output_limit = o.tool_output_limit;
+        }
+    }
+}
+
 /// Full soracode configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-    /// LLM connection settings.
+    /// LLM connection settings. Used directly when no named model is selected.
     pub llm: LlmConfig,
     /// Agent loop settings.
     #[serde(default)]
@@ -114,11 +173,35 @@ pub struct Config {
     /// Where sessions are stored.
     #[serde(default = "default_db")]
     pub db_path: PathBuf,
+    /// Named providers and models. When present, `--model` selects from these.
+    #[serde(default)]
+    pub providers: BTreeMap<String, crate::models::Provider>,
+    /// Named models, keyed by the name used on the command line.
+    #[serde(default)]
+    pub models: BTreeMap<String, crate::models::Model>,
+    /// Model used when neither `--model` nor `SORACODE_MODEL` is given.
+    #[serde(default)]
+    pub default_model: Option<String>,
 }
 
 /// Wrapper so `agent` can be omitted entirely in config files.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfigDefaults(#[serde(default)] pub AgentConfig);
+
+/// Shape of a standalone `models.toml`: the same maps as `Config`, plus the
+/// default selector, and none of the unrelated agent settings.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ModelsFile {
+    /// Providers keyed by name.
+    #[serde(default)]
+    pub providers: BTreeMap<String, crate::models::Provider>,
+    /// Models keyed by name.
+    #[serde(default)]
+    pub models: BTreeMap<String, crate::models::Model>,
+    /// Model used when none is requested.
+    #[serde(default)]
+    pub default_model: Option<String>,
+}
 
 fn default_db() -> PathBuf {
     let mut p = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
@@ -163,7 +246,31 @@ impl Default for Config {
             },
             agent: AgentConfigDefaults::default(),
             db_path: default_db(),
+            providers: BTreeMap::new(),
+            models: BTreeMap::new(),
+            default_model: None,
         }
+    }
+}
+
+/// Which name the operator asked for, and how they asked for it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ModelSelection {
+    /// A name resolved against `[models.*]`.
+    Named(String),
+    /// A raw model string used with the flat `[llm]` connection.
+    Literal(String),
+    /// A bare name that matches no configured model, most likely a typo.
+    Unknown(String),
+    /// Nothing was requested; fall back to the configured default.
+    Default,
+}
+
+impl ModelSelection {
+    /// Is this selection usable without further configuration?
+    #[must_use]
+    pub fn is_usable(&self) -> bool {
+        !matches!(self, Self::Unknown(_))
     }
 }
 
@@ -213,6 +320,89 @@ impl Config {
         Ok(cfg)
     }
 
+    /// Load config plus any models files, then apply the environment.
+    ///
+    /// Models are merged as a separate layer so the operator can keep every
+    /// provider and model in one file and still let project or user config
+    /// override the general settings.
+    ///
+    /// # Errors
+    /// Returns [`Error::Config`] when a config file exists but cannot be parsed.
+    pub fn load_with_models(explicit: Option<&Path>) -> Result<Self> {
+        let mut cfg = Self::load(explicit)?;
+
+        for path in Self::models_files(explicit) {
+            if path.exists() {
+                cfg.merge_models(&path)?;
+            }
+        }
+
+        cfg.apply_models_default();
+        cfg.merge_env();
+
+        Ok(cfg)
+    }
+
+    /// Models files in increasing precedence order.
+    fn models_files(explicit: Option<&Path>) -> Vec<PathBuf> {
+        let mut out = Vec::new();
+        if let Some(dir) = dirs::config_dir() {
+            out.push(dir.join("soracode").join("models.toml"));
+        }
+        out.push(PathBuf::from("soracode.models.toml"));
+        if let Some(p) = explicit {
+            let sibling = p.with_file_name("soracode.models.toml");
+            if sibling.exists() {
+                out.push(sibling);
+            }
+        }
+        out
+    }
+
+    fn merge_models(&mut self, path: &Path) -> Result<()> {
+        let text = std::fs::read_to_string(path)?;
+        let parsed: ModelsFile = toml::from_str(&text)
+            .map_err(|e| Error::Config(format!("{}: {e}", path.display())))?;
+
+        for (k, v) in parsed.providers {
+            self.providers.insert(k, v);
+        }
+        for (k, v) in parsed.models {
+            self.models.insert(k, v);
+        }
+        if parsed.default_model.is_some() {
+            self.default_model = parsed.default_model;
+        }
+        Ok(())
+    }
+
+    fn apply_models_default(&mut self) {
+        let Some(name) = self.default_model.clone() else {
+            return;
+        };
+        let Some(m) = self.models.get(&name) else {
+            return;
+        };
+        let Some(p) = self.providers.get(&m.provider) else {
+            return;
+        };
+        self.llm.base_url.clone_from(&p.base_url);
+        if !p.api_key.is_empty() {
+            self.llm.api_key.clone_from(&p.api_key);
+        }
+        self.llm.model.clone_from(&m.model);
+        if let Some(v) = m.max_tokens {
+            self.llm.max_tokens = v;
+        }
+        if let Some(v) = m.temperature {
+            self.llm.temperature = v;
+        }
+        if let Some(v) = m.timeout_secs {
+            self.llm.timeout_secs = v;
+        }
+        self.llm.headers.extend(p.headers.clone());
+    }
+
     fn merge_file(&mut self, path: &Path) -> Result<()> {
         let text = std::fs::read_to_string(path)?;
         let parsed: Config = toml::from_str(&text)
@@ -230,55 +420,21 @@ impl Config {
     }
 
     /// Overlay non-empty fields from `other` onto `self`.
+    ///
+    /// Detection is by emptiness, never by comparison against a default value:
+    /// an operator who writes `max_tokens = 16384` must get 16384 even though
+    /// that happens to be the built-in default, and a value of zero must be
+    /// distinguishable from "not mentioned".
     fn overlay(&mut self, other: Config) {
-        if !other.llm.base_url.is_empty() {
-            self.llm.base_url = other.llm.base_url;
-        }
-        if !other.llm.api_key.is_empty() {
-            self.llm.api_key = other.llm.api_key;
-        }
-        if !other.llm.model.is_empty() {
-            self.llm.model = other.llm.model;
-        }
-        if other.llm.max_tokens != default_max_tokens() {
-            self.llm.max_tokens = other.llm.max_tokens;
-        }
-        if (other.llm.temperature - default_temperature()).abs() > f32::EPSILON {
-            self.llm.temperature = other.llm.temperature;
-        }
-        if other.llm.timeout_secs != default_timeout() {
-            self.llm.timeout_secs = other.llm.timeout_secs;
-        }
-        if !other.llm.headers.is_empty() {
-            self.llm.headers.extend(other.llm.headers);
-        }
+        self.llm.overlay(&other.llm);
+        self.agent.0.overlay(&other.agent.0);
 
-        let a = other.agent.0;
-        if a.max_turns != default_max_turns() {
-            self.agent.0.max_turns = a.max_turns;
-        }
-        if a.max_seconds != 0 {
-            self.agent.0.max_seconds = a.max_seconds;
-        }
-        if a.workspace != default_workspace() {
-            self.agent.0.workspace = a.workspace;
-        }
-        if a.system_prompt_file.is_some() {
-            self.agent.0.system_prompt_file = a.system_prompt_file;
-        }
-        if a.tool_timeout_secs != default_tool_timeout() {
-            self.agent.0.tool_timeout_secs = a.tool_timeout_secs;
-        }
-        if a.tool_output_limit != default_tool_output() {
-            self.agent.0.tool_output_limit = a.tool_output_limit;
-        }
-        if a.subagent_max_depth != default_subagent_depth() {
-            self.agent.0.subagent_max_depth = a.subagent_max_depth;
-        }
-        if a.subagent_max_parallel != default_subagent_parallel() {
-            self.agent.0.subagent_max_parallel = a.subagent_max_parallel;
-        }
+        self.providers.extend(other.providers);
+        self.models.extend(other.models);
 
+        if other.default_model.is_some() {
+            self.default_model = other.default_model;
+        }
         if other.db_path != default_db() {
             self.db_path = other.db_path;
         }
@@ -293,6 +449,9 @@ impl Config {
         }
         if let Ok(v) = std::env::var("SORACODE_MODEL") {
             self.llm.model = v;
+        }
+        if let Ok(v) = std::env::var("SORACODE_DEFAULT_MODEL") {
+            self.default_model = Some(v);
         }
     }
 
@@ -318,19 +477,277 @@ impl Config {
         }
     }
 
-    /// Validate that the configuration is usable.
+    /// Validate that the configuration is usable for the chosen model.
+    ///
+    /// A named model carries its own endpoint and possibly its own key, so the
+    /// flat `[llm]` settings are only required when no named model is selected.
     ///
     /// # Errors
-    /// Returns [`Error::Config`] when the API key or base URL is missing.
-    pub fn validate(&self) -> Result<()> {
-        if self.llm.api_key.trim().is_empty() {
-            return Err(Error::Config(
-                "no API key: set SORACODE_API_KEY or llm.api_key in config".into(),
-            ));
+    /// Returns [`Error::Config`] when the resolved model has no usable endpoint
+    /// or the flat configuration is incomplete.
+    pub fn validate(&self, requested: Option<&str>) -> Result<()> {
+        match self.selection(requested) {
+            ModelSelection::Named(name) => {
+                let catalog = crate::models::Catalog {
+                    providers: self.providers.clone(),
+                    models: self.models.clone(),
+                };
+                let fallback = crate::models::Fallback::from_flat(&self.llm.api_key);
+                catalog.resolve(
+                    &name,
+                    fallback,
+                    self.llm.max_tokens,
+                    self.llm.temperature,
+                    self.llm.timeout_secs,
+                )?;
+                Ok(())
+            }
+            ModelSelection::Literal(_) | ModelSelection::Default => {
+                if self.llm.api_key.trim().is_empty() {
+                    return Err(Error::Config(
+                        "no API key: set SORACODE_API_KEY, llm.api_key, or a provider api_key"
+                            .into(),
+                    ));
+                }
+                if self.llm.base_url.trim().is_empty() {
+                    return Err(Error::Config("no base_url configured".into()));
+                }
+                Ok(())
+            }
+            ModelSelection::Unknown(name) => Err(Error::Config(format!(
+                "unknown model `{name}`; configured models: {}. \
+                 Use `literal:{name}` to send it verbatim.",
+                self.models.keys().cloned().collect::<Vec<_>>().join(", ")
+            ))),
         }
-        if self.llm.base_url.trim().is_empty() {
-            return Err(Error::Config("no base_url configured".into()));
+    }
+
+    /// Decide what `--model`/`SORACODE_MODEL` meant.
+    ///
+    /// A request matching a configured model name selects it. A raw identifier
+    /// such as `gh/gpt-4.1` is taken literally, so the flag keeps working with
+    /// no models file. Once models are configured, a bare word that matches
+    /// nothing is treated as a typo rather than silently sent to the provider,
+    /// because that failure is otherwise a confusing 404. Use a slash or the
+    /// `literal:` prefix to force a literal name.
+    #[must_use]
+    pub fn selection(&self, requested: Option<&str>) -> ModelSelection {
+        match requested.map(str::trim).filter(|s| !s.is_empty()) {
+            Some(name) if self.models.contains_key(name) => {
+                ModelSelection::Named(name.to_string())
+            }
+            Some(literal) => {
+                let forced = literal.strip_prefix("literal:");
+                let looks_like_typo = self.models_configured()
+                    && !literal.contains('/')
+                    && !literal.contains(':');
+                match forced {
+                    Some(raw) => ModelSelection::Literal(raw.to_string()),
+                    None if looks_like_typo => ModelSelection::Unknown(literal.to_string()),
+                    None => ModelSelection::Literal(literal.to_string()),
+                }
+            }
+            None => match &self.default_model {
+                Some(name) if self.models.contains_key(name) => {
+                    ModelSelection::Named(name.clone())
+                }
+                _ => ModelSelection::Default,
+            },
         }
-        Ok(())
+    }
+
+    fn models_configured(&self) -> bool {
+        !self.models.is_empty()
+    }
+
+    /// Produce the concrete connection settings for the chosen model.
+    ///
+    /// # Errors
+    /// Returns [`Error::Config`] when a named model cannot be resolved.
+    pub fn resolve(&self, requested: Option<&str>) -> Result<crate::models::Resolved> {
+        match self.selection(requested) {
+            ModelSelection::Named(name) => {
+                let catalog = crate::models::Catalog {
+                    providers: self.providers.clone(),
+                    models: self.models.clone(),
+                };
+                let fallback = crate::models::Fallback::from_flat(&self.llm.api_key);
+                catalog.resolve(
+                    &name,
+                    fallback,
+                    self.llm.max_tokens,
+                    self.llm.temperature,
+                    self.llm.timeout_secs,
+                )
+            }
+            ModelSelection::Literal(model) => Ok(crate::models::Resolved {
+                name: model.clone(),
+                provider: "<inline>".into(),
+                base_url: self.llm.base_url.clone(),
+                api_key: self.llm.api_key.clone(),
+                headers: self.llm.headers.clone(),
+                model,
+                max_tokens: self.llm.max_tokens,
+                temperature: self.llm.temperature,
+                timeout_secs: self.llm.timeout_secs,
+            }),
+            ModelSelection::Default => Ok(crate::models::Resolved {
+                name: self.llm.model.clone(),
+                provider: "<default>".into(),
+                base_url: self.llm.base_url.clone(),
+                api_key: self.llm.api_key.clone(),
+                headers: self.llm.headers.clone(),
+                model: self.llm.model.clone(),
+                max_tokens: self.llm.max_tokens,
+                temperature: self.llm.temperature,
+                timeout_secs: self.llm.timeout_secs,
+            }),
+            ModelSelection::Unknown(name) => Err(Error::Config(format!(
+                "unknown model `{name}`; configured models: {}. \
+                 Use `literal:{name}` to send it verbatim.",
+                self.models.keys().cloned().collect::<Vec<_>>().join(", ")
+            ))),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::Model;
+
+    fn with_models() -> Config {
+        let mut c = Config::default();
+        c.llm.api_key = "sk-flat".into();
+        c.llm.base_url = "https://flat.test/v1".into();
+        c.llm.model = "flat-model".into();
+        c.providers.insert(
+            "router".into(),
+            crate::models::Provider {
+                base_url: "https://router.test/v1".into(),
+                api_key: "sk-router".into(),
+                headers: BTreeMap::new(),
+            },
+        );
+        c.models.insert(
+            "fast".into(),
+            Model {
+                provider: "router".into(),
+                model: "gh/gpt-4.1".into(),
+                ..Default::default()
+            },
+        );
+        c
+    }
+
+    #[test]
+    fn named_model_selects_its_provider() {
+        let c = with_models();
+        let r = c.resolve(Some("fast")).unwrap();
+        assert_eq!(r.base_url, "https://router.test/v1");
+        assert_eq!(r.model, "gh/gpt-4.1");
+        assert_eq!(r.api_key, "sk-router");
+    }
+
+    #[test]
+    fn slash_name_stays_literal_even_with_models() {
+        let c = with_models();
+        assert_eq!(
+            c.selection(Some("gh/gpt-4o-mini")),
+            ModelSelection::Literal("gh/gpt-4o-mini".into())
+        );
+    }
+
+    #[test]
+    fn bare_unknown_name_is_a_typo_not_a_literal() {
+        let c = with_models();
+        assert_eq!(
+            c.selection(Some("fst")),
+            ModelSelection::Unknown("fst".into())
+        );
+        let err = c.resolve(Some("fst")).unwrap_err().to_string();
+        assert!(err.contains("unknown model `fst`"));
+        assert!(err.contains("fast"));
+        assert!(err.contains("literal:fst"));
+    }
+
+    #[test]
+    fn literal_prefix_forces_verbatim_even_with_models() {
+        let c = with_models();
+        assert_eq!(
+            c.selection(Some("literal:fst")),
+            ModelSelection::Literal("fst".into())
+        );
+        assert_eq!(c.resolve(Some("literal:fst")).unwrap().model, "fst");
+    }
+
+    #[test]
+    fn without_models_everything_stays_literal() {
+        let mut c = Config::default();
+        c.llm.api_key = "k".into();
+        c.llm.base_url = "https://flat.test/v1".into();
+        assert_eq!(
+            c.selection(Some("anything")),
+            ModelSelection::Literal("anything".into())
+        );
+        assert!(c.validate(Some("anything")).is_ok());
+    }
+
+    #[test]
+    fn default_model_drives_a_plain_run() {
+        let mut c = with_models();
+        c.default_model = Some("fast".into());
+        assert_eq!(
+            c.selection(None),
+            ModelSelection::Named("fast".into())
+        );
+    }
+
+    #[test]
+    fn unknown_default_falls_back_instead_of_failing() {
+        let mut c = with_models();
+        c.default_model = Some("ghost".into());
+        assert_eq!(c.selection(None), ModelSelection::Default);
+        assert!(c.resolve(None).is_ok());
+    }
+
+    #[test]
+    fn named_model_needs_no_flat_api_key() {
+        let mut c = with_models();
+        c.llm.api_key = String::new();
+        assert!(c.validate(Some("fast")).is_ok());
+        assert!(c.validate(None).is_err());
+    }
+
+    #[test]
+    fn model_overrides_beat_flat_settings() {
+        let mut c = with_models();
+        c.llm.max_tokens = 111;
+        c.models.insert(
+            "big".into(),
+            Model {
+                provider: "router".into(),
+                model: "m".into(),
+                max_tokens: Some(999),
+                temperature: Some(0.9),
+                timeout_secs: Some(7),
+            },
+        );
+        let r = c.resolve(Some("big")).unwrap();
+        assert_eq!(r.max_tokens, 999);
+        assert!((r.temperature - 0.9).abs() < f32::EPSILON);
+        assert_eq!(r.timeout_secs, 7);
+    }
+
+    #[test]
+    fn explicit_value_equal_to_default_is_not_treated_as_absent() {
+        let mut c = Config::default();
+        c.llm.max_tokens = 1;
+        let parsed: LlmConfig = toml::from_str(
+            "base_url = \"u\"\napi_key = \"k\"\nmodel = \"m\"\nmax_tokens = 16384\n",
+        )
+        .unwrap();
+        c.llm.overlay(&parsed);
+        assert_eq!(c.llm.max_tokens, 16_384);
     }
 }
