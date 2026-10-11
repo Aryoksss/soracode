@@ -70,6 +70,14 @@ struct Cli {
     #[arg(long = "sessions")]
     sessions: bool,
 
+    /// List the tools detected on this host and exit.
+    #[arg(long = "tools")]
+    tools: bool,
+
+    /// With --tools or --print-prompt, re-walk PATH instead of using the cache.
+    #[arg(long = "rescan")]
+    rescan: bool,
+
     /// Do not start the TUI; print events to stdout and exit.
     #[arg(short = 'n', long = "non-interactive")]
     non_interactive: bool,
@@ -99,14 +107,29 @@ async fn run() -> Result<()> {
     );
 
     if cli.print_prompt {
-        let env = prompt::environment_block(
+        let inventory = tools::catalog::inventory().await;
+        let env = prompt::environment_block_with_tools(
             &cfg.agent().workspace,
             &cfg.llm.model,
             "preview",
             0,
+            Some(&inventory),
         );
         println!("{}", prompt::for_role(false));
         println!("{env}");
+        return Ok(());
+    }
+
+    if cli.tools {
+        let inv = if cli.rescan {
+            tools::catalog::rescan().await
+        } else {
+            tools::catalog::inventory().await
+        };
+        println!("{}", inv.render());
+        if cli.rescan {
+            eprintln!("soracode: cache refreshed at {}", tools::catalog::cache_path().display());
+        }
         return Ok(());
     }
 
@@ -125,6 +148,13 @@ async fn run() -> Result<()> {
     }
 
     cfg.validate()?;
+
+    if cli.rescan || tools::catalog::load_cache().is_none() {
+        let inv = tools::catalog::rescan().await;
+        if !std::io::IsTerminal::is_terminal(&std::io::stderr()) {
+            eprintln!("soracode: {}", tools::catalog::summarize(&inv));
+        }
+    }
 
     // Assemble the instruction.
     let mut instruction = cli.instruction.join("\n\n");

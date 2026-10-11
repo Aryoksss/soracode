@@ -120,13 +120,15 @@ impl Agent {
             content: prompt::for_role(spec.is_subagent).to_string(),
         }];
 
-        // Root agents get an environment block.
+        // Root agents get an environment block covering the host's real tool set.
         if !spec.is_subagent {
-            let env = prompt::environment_block(
+            let inventory = crate::tools::catalog::load_cache();
+            let env = prompt::environment_block_with_tools(
                 &spec.config.workspace,
                 spec.client.model(),
                 spec.session.id(),
                 0,
+                inventory.as_ref(),
             );
             messages.push(Message::System { content: env });
         }

@@ -1,10 +1,12 @@
 //! Tool registry and dispatch.
 
+pub mod catalog;
 pub mod fs;
 pub mod http;
 pub mod notes;
 pub mod shell;
 pub mod subagent;
+pub mod tools;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -61,6 +63,7 @@ impl Registry {
             Box::new(fs::GrepTool::new(ctx.clone())),
             Box::new(notes::NoteTool::new(ctx.clone())),
             Box::new(notes::RecallTool::new(ctx.clone())),
+            Box::new(tools::ToolsTool::new(ctx.clone())),
         ];
 
         if ctx.config.subagents_enabled && ctx.depth < ctx.config.subagent_max_depth {

@@ -65,11 +65,37 @@ workspace = "/home/user/target"
 | `http` | raw requests, TLS verification off, redirects off by default |
 | `read` `write` `edit` `list` `glob` `grep` | filesystem work |
 | `note` `recall` | scratch memory re-injected every turn |
+| `tools` | list what is installed on this host |
 | `subagent` | run several self-contained tasks in parallel |
 
 Subagents get their own context and cannot see the parent conversation, so
 their instruction must be self-contained. Depth is capped by
 `agent.subagent_max_depth`.
+
+## Knowing the host
+
+Soracode discovers what is actually installed rather than assuming. Every
+candidate is resolved by walking the runtime `PATH` the way a shell would, so
+tools in `~/.cargo/bin`, `~/go/bin`, and snap directories are found with no
+special handling. The result is injected into the prompt, which is why the
+agent can say whether `hashcat` exists without running anything.
+
+```sh
+soracode --tools            # list what was detected
+soracode --tools --rescan   # re-walk PATH and refresh the cache
+```
+
+Detection is defensive, because `--version` is not a standard. `ffuf` and `go`
+print a usage error to stderr while emitting the version on stdout; `nuclei`
+emits ANSI colour codes; and `msfconsole --version` starts the Metasploit
+database, so it is reported as present without being probed. Version strings
+are scored rather than taken as "the first number", which is what keeps
+`ssh -V` reporting `10.2p1` instead of the OpenSSL version it also prints.
+
+Results are cached in `~/.local/share/soracode/tools.json`. A cached entry is
+reused only while every recorded path still exists and is executable, so
+removing or moving a tool invalidates it. A full scan takes about five seconds;
+a cached read is instant.
 
 ## Sessions
 
