@@ -1,0 +1,59 @@
+[package]
+name = "harness"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+description = "A lightweight, fully-controllable security agent harness"
+license = "MIT"
+
+[[bin]]
+name = "harness"
+path = "src/main.rs"
+
+[dependencies]
+# CLI
+clap = { version = "4", features = ["derive", "env", "wrap_help"] }
+
+# Async runtime
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "fs", "io-util", "sync", "time"] }
+
+# HTTP client (rustls => no OpenSSL, static, light)
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
+futures-util = "0.3"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# Errors
+anyhow = "1"
+async-trait = "0.1"
+thiserror = "2"
+
+# SQLite (bundled => no system libsqlite3 needed)
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# Terminal UI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Terminal color / streaming markdown-ish rendering
+owo-colors = "4"
+console = "0.15"
+
+# Utilities
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
+hex = "0.4"
+uuid = { version = "1", features = ["v4"] }
+regex = "1"
+dirs = "5"
+walkdir = "2"
+
+[profile.release]
+opt-level = "z"     # optimise for size
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
