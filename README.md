@@ -129,6 +129,44 @@ A name containing `/` or `:` is always treated as a raw model string, and
 `literal:` forces that for any name. With no models file, every `--model` value
 is literal and behavior is unchanged.
 
+### A working catalogue
+
+Not every model a gateway lists is actually served, and a listed model can fail
+upstream with `404`, `403`, or `503`. Probe before trusting an entry. The
+catalogue below was reached through one 9router endpoint and verified by asking
+each model for a fixed reply:
+
+| Name | Model | Notes |
+| --- | --- | --- |
+| `gpt41` | `gh/gpt-4.1` | default; most obedient, large context |
+| `gpt4o` | `gh/gpt-4o` | |
+| `gpt4omini` | `gh/gpt-4o-mini` | fast and cheap |
+| `deepseek` | `kr/deepseek-3.2` | |
+| `qwen-coder` | `kr/qwen3-coder-next` | code |
+| `opus` | `kr/claude-sonnet-4.5` | |
+| `sonnet46` | `ag/claude-sonnet-4-6` | |
+| `opus46` | `ag/claude-opus-4-6-thinking` | reasoning |
+| `gemini38` | `ag/gemini-3.8-flash-high` | |
+| `gemini38m` | `ag/gemini-3.8-flash` | |
+| `gemini3` | `ag/gemini-3-flash` | |
+| `gemini31pro` | `ag/gemini-3.1-pro-low` | |
+| `gemini-pro` | `ag/gemini-pro-agent` | |
+| `gpt55` | `cx/gpt-5.5` | |
+| `gpt55r` | `cx/gpt-5.5-review` | |
+| `oss120b` | `ollama/gpt-oss:120b` | |
+| `oss120b-ag` | `ag/gpt-oss-120b-medium` | reasoning; output arrives in `reasoning_content` |
+| `glm` | `cf/@cf/zai-org/glm-4.7-flash` | |
+| `llama70b` | `cf/@cf/meta/llama-3.1-70b-instruct-fp8-fast` | sometimes returns JSON instead of the asked-for text |
+
+Models present in the gateway listing but failing when called (`gc/*` answered
+`403` without a signed-in Gemini CLI; `cx/gpt-5.4`, `cx/gpt-6-astra`, and
+`ag/gemini-3.7-flash` answered `not supported` or `404`; `groq/*` answered
+`404`) are left out on purpose, and a failing entry is commented out with the
+observed error rather than silently dropped.
+
+A reasoning model whose answer arrives only in `reasoning_content` is read
+correctly; it is not treated as an empty reply.
+
 ## Tools
 
 | Tool | Purpose |
