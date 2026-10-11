@@ -85,6 +85,49 @@ pub struct Agent {
     events: Option<UnboundedSender<AgentEvent>>,
 }
 
+/// Rebuild prior turns from the session so `--resume` keeps its context.
+///
+/// Only the tail is replayed. A long session would otherwise push the system
+/// prompt past the model's window, and the recent turns are the ones that
+/// matter for the next instruction. Tool entries are skipped: their exact
+/// request shape is not stored, so a fabricated assistant/tool pair would be
+/// malformed. The assistant text that followed them is kept, which preserves
+/// what the model concluded.
+pub fn replay_history(session: &Session, messages: &mut Vec<Message>) {
+    const MAX_REPLAY: usize = 24;
+
+    let Ok(entries) = session.entries() else {
+        return;
+    };
+
+    let mut replayed = Vec::new();
+    for entry in entries {
+        match entry.role.as_str() {
+            "user" => replayed.push(Message::User {
+                content: entry.content,
+            }),
+            "assistant" if !entry.content.trim().is_empty() => {
+                replayed.push(Message::Assistant {
+                    content: Some(entry.content),
+                    tool_calls: None,
+                });
+            }
+            _ => {}
+        }
+    }
+
+    if replayed.len() > MAX_REPLAY {
+        replayed.drain(0..replayed.len() - MAX_REPLAY);
+    }
+
+    // A history that starts mid-turn would open with an assistant reply.
+    if matches!(replayed.first(), Some(Message::Assistant { .. })) {
+        replayed.remove(0);
+    }
+
+    messages.extend(replayed);
+}
+
 impl Agent {
     fn emit(&self, ev: AgentEvent) {
         if let Some(tx) = &self.events {
@@ -106,6 +149,9 @@ impl Agent {
             }
         }
 
+        let session = spec.session;
+        let is_subagent = spec.is_subagent;
+
         let ctx = ToolContext {
             config: spec.config.clone(),
             workspace: spec.config.workspace.clone(),
@@ -117,20 +163,22 @@ impl Agent {
         let registry = Registry::standard(&ctx);
 
         let mut messages = vec![Message::System {
-            content: prompt::for_role(spec.is_subagent).to_string(),
+            content: prompt::for_role(is_subagent).to_string(),
         }];
 
         // Root agents get an environment block covering the host's real tool set.
-        if !spec.is_subagent {
+        if !is_subagent {
             let inventory = crate::tools::catalog::load_cache();
             let env = prompt::environment_block_with_tools(
                 &spec.config.workspace,
                 spec.client.model(),
-                spec.session.id(),
+                session.id(),
                 0,
                 inventory.as_ref(),
             );
             messages.push(Message::System { content: env });
+
+            replay_history(&session, &mut messages);
         }
 
         Ok(Self {
@@ -139,7 +187,7 @@ impl Agent {
             registry,
             notes,
             messages,
-            session: spec.session,
+            session,
             events: spec.events,
         })
     }
@@ -351,5 +399,70 @@ impl Spawner for SubagentSpawner {
         let result = agent.run(instruction).await?;
         agent.flush_notes()?;
         Ok(result.final_text)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::replay_history;
+    use crate::llm::Message;
+    use crate::session::Session;
+
+    fn temp_session(tag: &str) -> (Session, std::path::PathBuf) {
+        let dir = std::env::temp_dir().join(format!("soracode-agent-{tag}"));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("s.db");
+        (Session::open(&path, None).unwrap(), dir)
+    }
+
+    #[test]
+    fn replay_restores_user_and_assistant_text() {
+        let (s, dir) = temp_session("replay-basic");
+        s.append("user", "remember MANGO42", None).unwrap();
+        s.append("assistant", "Noted.", None).unwrap();
+
+        let mut msgs: Vec<Message> = Vec::new();
+        replay_history(&s, &mut msgs);
+
+        assert_eq!(msgs.len(), 2);
+        assert!(matches!(&msgs[0], Message::User { content } if content == "remember MANGO42"));
+        assert!(
+            matches!(&msgs[1], Message::Assistant { content: Some(c), .. } if c == "Noted.")
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn replay_skips_tool_entries_and_a_leading_reply() {
+        let (s, dir) = temp_session("replay-tools");
+        s.append("tool", "file contents", Some("read")).unwrap();
+        s.append("assistant", "I read it.", None).unwrap();
+        s.append("user", "and now?", None).unwrap();
+
+        let mut msgs: Vec<Message> = Vec::new();
+        replay_history(&s, &mut msgs);
+
+        // The tool entry is dropped, so the first kept turn would be a lone
+        // assistant reply; it must be dropped too, leaving the user turn.
+        assert_eq!(msgs.len(), 1);
+        assert!(matches!(&msgs[0], Message::User { content } if content == "and now?"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn replay_keeps_only_the_recent_tail() {
+        let (s, dir) = temp_session("replay-tail");
+        for i in 0..20 {
+            s.append("user", &format!("u{i}"), None).unwrap();
+            s.append("assistant", &format!("a{i}"), None).unwrap();
+        }
+
+        let mut msgs: Vec<Message> = Vec::new();
+        replay_history(&s, &mut msgs);
+
+        assert_eq!(msgs.len(), 24);
+        assert!(matches!(&msgs[0], Message::User { content } if content == "u8"));
+        let _ = std::fs::remove_dir_all(dir);
     }
 }
