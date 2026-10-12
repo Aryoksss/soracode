@@ -31,10 +31,21 @@ impl App {
                     self.transcript
                         .push(Line2::Info(format!("  /{:<9} {}", c.name, c.desc)));
                 }
-                self.transcript.push(Line2::Info(
-                    "  keys: Enter send · ↑/↓ history · Ctrl-U clear · PgUp/PgDn scroll · Ctrl-C quit"
-                        .into(),
-                ));
+                for k in [
+                    "Enter send",
+                    "↑/↓ history",
+                    "Ctrl-U clear input",
+                    "PgUp/PgDn scroll",
+                    "Home/End top/newest",
+                    "Tab sidebar",
+                    "Ctrl-B hide sidebar",
+                    "Ctrl-T thinking",
+                    "Ctrl-L clear transcript",
+                    "F2 copy",
+                    "Ctrl-C quit",
+                ] {
+                    self.transcript.push(Line2::Info(format!("  key: {k}")));
+                }
                 self.status = "help".into();
             }
             command::Action::ShowTools => {
@@ -81,6 +92,7 @@ impl App {
             ) {
                 Ok(c) => {
                     *self.client.lock().expect("client mutex") = c;
+                    self.model = r.model.clone();
                     self.transcript
                         .push(Line2::Info(format!("model → {name} ({})", r.model)));
                     self.status = format!("model {name}");

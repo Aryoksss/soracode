@@ -48,4 +48,24 @@ impl Session {
     pub fn latest(path: &Path) -> Result<Option<String>> {
         Ok(Self::list(path, 1)?.into_iter().next().map(|(id, _, _)| id))
     }
+
+    /// Whether a session with this id exists in the database.
+    ///
+    /// # Errors
+    /// Propagates database errors.
+    pub fn exists(path: &Path, id: &str) -> Result<bool> {
+        if !path.exists() {
+            return Ok(false);
+        }
+        let conn = Connection::open(path)?;
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, created INTEGER NOT NULL, cwd TEXT);",
+        )?;
+        let n: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM sessions WHERE id = ?1",
+            params![id],
+            |r| r.get(0),
+        )?;
+        Ok(n > 0)
+    }
 }

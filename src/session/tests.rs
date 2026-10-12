@@ -27,3 +27,18 @@ fn latest_returns_the_newest_session() {
     assert_eq!(got.as_deref(), Some(b.id()));
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[test]
+fn exists_is_false_for_an_unknown_id() {
+    let (dir, path) = temp_db("exists-unknown");
+    assert!(!Session::exists(&path, "deadbeef").unwrap());
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn exists_is_true_after_open() {
+    let (dir, path) = temp_db("exists-known");
+    let s = Session::open(&path, None).unwrap();
+    assert!(Session::exists(&path, s.id()).unwrap());
+    let _ = std::fs::remove_dir_all(dir);
+}

@@ -160,7 +160,14 @@ pub fn resolve_resume(
     cont: bool,
 ) -> crate::error::Result<Option<String>> {
     match (resume, cont) {
-        (Some(id), _) => Ok(Some(id.to_string())),
+        (Some(id), _) => {
+            if !crate::session::Session::exists(db_path, id)? {
+                return Err(crate::error::Error::Session(format!(
+                    "no session {id} in this database"
+                )));
+            }
+            Ok(Some(id.to_string()))
+        }
         (None, true) => match crate::session::Session::latest(db_path)? {
             Some(id) => Ok(Some(id)),
             None => {
