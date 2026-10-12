@@ -25,6 +25,8 @@ pub enum Action {
     Pause,
     /// Clear the pause so the agent may continue.
     Resume,
+    /// Ask the next turn to compact the conversation harder.
+    Compact,
     /// Switch the autonomy mode (auto/guided/free).
     SetMode,
     /// Render the command list and key bindings into the transcript.
@@ -101,6 +103,11 @@ pub const COMMANDS: &[Command] = &[
         name: "resume",
         desc: "clear the pause and let the agent continue",
         action: Action::Resume,
+    },
+    Command {
+        name: "compact",
+        desc: "trim older turns before the next message",
+        action: Action::Compact,
     },
     Command {
         name: "mode",

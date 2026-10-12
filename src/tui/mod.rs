@@ -101,6 +101,8 @@ pub struct App {
     ctrl_c_armed: bool,
     cancel: Arc<tokio::sync::Notify>,
     pause: Arc<std::sync::atomic::AtomicBool>,
+    /// One-shot flag: the next turn compacts against a tighter budget.
+    compact_now: Arc<std::sync::atomic::AtomicBool>,
     mode: crate::config::Mode,
     sidebar_area: ratatui::layout::Rect,
     /// Mirrors `shared_session`'s id for the transcript header.
@@ -161,6 +163,7 @@ impl App {
             db_path,
             cancel: Arc::new(tokio::sync::Notify::new()),
             pause: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            compact_now: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             mode,
             sidebar_area: ratatui::layout::Rect::default(),
             session_id,

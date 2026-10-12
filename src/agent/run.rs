@@ -158,12 +158,18 @@ impl Agent {
     /// always survive, and an assistant tool call is never separated from the
     /// tool result that answers it.
     fn compact(&mut self) {
-        if let Some(elided) =
-            super::compact_messages(&mut self.messages, self.config.context_budget)
-        {
+        let forced = self
+            .compact_now
+            .swap(false, std::sync::atomic::Ordering::Relaxed);
+        let budget = super::budget_for(self.config.context_budget, forced);
+        if let Some(elided) = super::compact_messages(&mut self.messages, budget) {
             self.emit(AgentEvent::Info(format!(
                 "context compacted: elided {elided} earlier messages"
             )));
+        } else if forced {
+            self.emit(AgentEvent::Info(
+                "context compacted: nothing to elide".into(),
+            ));
         }
     }
 

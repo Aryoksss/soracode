@@ -86,4 +86,6 @@ pub struct AgentSpec {
     pub spawner: Option<Arc<dyn Spawner>>,
     /// Shared pause flag; when set, the loop stops before the next tool call.
     pub pause: Arc<std::sync::atomic::AtomicBool>,
+    /// One-shot flag; when set, the next turn compacts harder, then clears it.
+    pub compact_now: Arc<std::sync::atomic::AtomicBool>,
 }

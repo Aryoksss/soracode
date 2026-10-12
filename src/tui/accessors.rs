@@ -19,6 +19,12 @@ impl App {
         self.pause.clone()
     }
 
+    /// The one-shot flag that asks the next turn to compact harder.
+    #[must_use]
+    pub fn compact_flag(&self) -> Arc<std::sync::atomic::AtomicBool> {
+        self.compact_now.clone()
+    }
+
     /// The autonomy mode currently selected in the UI.
     #[must_use]
     pub fn mode(&self) -> crate::config::Mode {

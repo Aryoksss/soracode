@@ -2,6 +2,16 @@
 
 use crate::llm::Message;
 
+/// The budget to compact against: half the configured budget when the operator
+/// asked for a forced compaction, otherwise the configured budget unchanged.
+pub fn budget_for(base: usize, forced: bool) -> usize {
+    if forced {
+        base / 2
+    } else {
+        base
+    }
+}
+
 fn message_len(m: &Message) -> usize {
     match m {
         Message::System { content } | Message::User { content } => content.len(),

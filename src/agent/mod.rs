@@ -17,7 +17,7 @@ use crate::prompt;
 use crate::session::Session;
 use crate::tools::{Registry, ToolContext};
 
-pub use self::compact::compact_messages;
+pub use self::compact::{budget_for, compact_messages};
 pub use self::replay::replay_history;
 pub use self::spawner::SubagentSpawner;
 pub use self::types::{AgentEvent, AgentSpec, TurnResult};
@@ -32,6 +32,7 @@ pub struct Agent {
     session: Arc<Session>,
     events: Option<UnboundedSender<AgentEvent>>,
     pause: Arc<std::sync::atomic::AtomicBool>,
+    compact_now: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl Agent {
@@ -102,6 +103,7 @@ impl Agent {
             session,
             events: spec.events,
             pause: spec.pause,
+            compact_now: spec.compact_now,
         })
     }
 }

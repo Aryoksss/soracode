@@ -111,6 +111,14 @@ impl App {
                     .push(Line2::Info("resumed — the agent may continue".into()));
                 self.status = "running".into();
             }
+            command::Action::Compact => {
+                self.compact_now
+                    .store(true, std::sync::atomic::Ordering::Relaxed);
+                self.transcript.push(Line2::Info(
+                    "compacting on the next message — older turns will be elided".into(),
+                ));
+                self.status = "compact queued".into();
+            }
             command::Action::SetMode => match crate::config::Mode::parse(arg) {
                 Some(m) => {
                     self.mode = m;

@@ -17,6 +17,8 @@ use crate::tui;
 pub(crate) struct Runtime {
     /// Shared pause flag the loop reads before each tool call.
     pub pause: Arc<std::sync::atomic::AtomicBool>,
+    /// One-shot flag asking the next turn to compact harder.
+    pub compact_now: Arc<std::sync::atomic::AtomicBool>,
     /// Autonomy mode.
     pub mode: crate::config::Mode,
 }
@@ -52,6 +54,7 @@ pub(crate) fn build_agent(
         events,
         spawner: Some(spawner),
         pause: rt.pause,
+        compact_now: rt.compact_now,
     })
 }
 
@@ -80,6 +83,7 @@ pub(crate) async fn run_once(
         false,
         Runtime {
             pause: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            compact_now: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             mode: cfg.agent().mode,
         },
     )?;
@@ -103,6 +107,7 @@ pub(crate) fn run_tui(client: Client, cfg: Arc<Config>, session: Arc<Session>) -
     let cb_client = client.clone();
     let cancel = app.cancel_notify();
     let pause = app.pause_flag();
+    let compact_now = app.compact_flag();
     let mode = app.mode();
 
     app.run(move |instruction, tx| {
@@ -112,10 +117,12 @@ pub(crate) fn run_tui(client: Client, cfg: Arc<Config>, session: Arc<Session>) -
         let tx2 = tx.clone();
         let cancel = cancel.clone();
         let pause = pause.clone();
+        let compact_now = compact_now.clone();
 
         tokio::spawn(async move {
             let rt = Runtime {
                 pause: pause.clone(),
+                compact_now: compact_now.clone(),
                 mode,
             };
             match build_agent(

@@ -196,3 +196,9 @@ fn compaction_never_splits_a_tool_call_from_its_result() {
         }
     }
 }
+
+#[test]
+fn forced_compaction_halves_the_budget() {
+    assert_eq!(super::budget_for(8000, false), 8000);
+    assert_eq!(super::budget_for(8000, true), 4000);
+}
