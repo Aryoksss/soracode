@@ -11,6 +11,10 @@ pub enum Action {
     Status,
     /// Render discovered hosts and services.
     Targets,
+    /// Render every service across hosts, as a port matrix.
+    Services,
+    /// Render the access and reachability graph.
+    Matrix,
     /// Render recorded findings.
     Vulns,
     /// Render discovered credentials.
@@ -62,6 +66,16 @@ pub const COMMANDS: &[Command] = &[
         name: "targets",
         desc: "discovered hosts and services",
         action: Action::Targets,
+    },
+    Command {
+        name: "services",
+        desc: "every service across hosts, as a port matrix",
+        action: Action::Services,
+    },
+    Command {
+        name: "matrix",
+        desc: "access and reachability graph",
+        action: Action::Matrix,
     },
     Command {
         name: "vulns",
@@ -193,6 +207,11 @@ mod tests {
     fn dashboard_commands_resolve() {
         assert_eq!(by_name("status").map(|c| c.action), Some(Action::Status));
         assert_eq!(by_name("targets").map(|c| c.action), Some(Action::Targets));
+        assert_eq!(
+            by_name("services").map(|c| c.action),
+            Some(Action::Services)
+        );
+        assert_eq!(by_name("matrix").map(|c| c.action), Some(Action::Matrix));
         assert_eq!(by_name("vulns").map(|c| c.action), Some(Action::Vulns));
         assert_eq!(by_name("creds").map(|c| c.action), Some(Action::Creds));
     }

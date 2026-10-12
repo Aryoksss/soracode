@@ -1,11 +1,10 @@
 //! Slash-command execution.
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::{
-    command, describe_creds, describe_dashboard, describe_sessions, describe_targets,
-    describe_tools, describe_vulns, App, Line2, Palette,
+    command, describe_creds, describe_dashboard, describe_matrix, describe_services,
+    describe_sessions, describe_targets, describe_tools, describe_vulns, App, Line2, Palette,
 };
 use crate::agent::AgentEvent;
 use crate::llm::{Client, ClientConfig};
@@ -72,6 +71,18 @@ impl App {
                     self.transcript.push(Line2::Info(line));
                 }
                 self.status = "targets".into();
+            }
+            command::Action::Services => {
+                for line in describe_services(&self.shared_session) {
+                    self.transcript.push(Line2::Info(line));
+                }
+                self.status = "services".into();
+            }
+            command::Action::Matrix => {
+                for line in describe_matrix(&self.shared_session) {
+                    self.transcript.push(Line2::Info(line));
+                }
+                self.status = "matrix".into();
             }
             command::Action::Vulns => {
                 for line in describe_vulns(&self.shared_session) {
@@ -173,73 +184,6 @@ impl App {
             Err(e) => self
                 .transcript
                 .push(Line2::Error(format!("model switch failed: {e}"))),
-        }
-    }
-}
-
-impl App {
-    /// Handle keys while the palette is open.
-    pub(super) fn handle_palette_key<F>(&mut self, key: KeyEvent, on_submit: &mut F) -> bool
-    where
-        F: FnMut(String, UnboundedSender<AgentEvent>) + Send + 'static,
-    {
-        let items = match &self.palette.models {
-            Some(models) => models.len(),
-            None => command::matching(&self.input).len(),
-        };
-
-        match (key.code, key.modifiers) {
-            (KeyCode::Esc, _) => {
-                self.palette = Palette::closed();
-                self.input.clear();
-            }
-            (KeyCode::Up, _) => {
-                self.palette.selected = self.palette.selected.saturating_sub(1);
-            }
-            (KeyCode::Down, _) => {
-                if items > 0 && self.palette.selected + 1 < items {
-                    self.palette.selected += 1;
-                }
-            }
-            (KeyCode::Enter, _) | (KeyCode::Tab, _) => {
-                self.accept_palette(on_submit);
-            }
-            (KeyCode::Char('c'), KeyModifiers::CONTROL) => return true,
-            (KeyCode::Char(c), _) => {
-                self.input.push(c);
-                self.palette.models = None;
-                self.refresh_palette();
-            }
-            (KeyCode::Backspace, _) => {
-                self.input.pop();
-                self.palette.models = None;
-                self.refresh_palette();
-            }
-            _ => {}
-        }
-        self.quit
-    }
-
-    /// Act on the highlighted palette entry.
-    fn accept_palette<F>(&mut self, on_submit: &mut F)
-    where
-        F: FnMut(String, UnboundedSender<AgentEvent>) + Send + 'static,
-    {
-        if let Some(models) = self.palette.models.take() {
-            if let Some(name) = models.get(self.palette.selected) {
-                self.switch_model(name);
-            }
-            self.palette = Palette::closed();
-            self.input.clear();
-            return;
-        }
-
-        let matched = command::matching(&self.input);
-        if let Some(cmd) = matched.get(self.palette.selected) {
-            let name = cmd.name;
-            self.palette = Palette::closed();
-            self.input.clear();
-            self.run_slash(name, on_submit);
         }
     }
 }

@@ -6,6 +6,7 @@ mod command;
 mod draw;
 mod keys;
 mod markdown;
+mod palette;
 mod panel;
 mod sidebar;
 mod slash;
@@ -17,8 +18,8 @@ mod transcript;
 mod markdown_tests;
 
 use panel::{
-    describe_creds, describe_dashboard, describe_sessions, describe_targets, describe_tools,
-    describe_vulns,
+    describe_creds, describe_dashboard, describe_matrix, describe_services, describe_sessions,
+    describe_targets, describe_tools, describe_vulns,
 };
 use sidebar::load_sessions;
 
