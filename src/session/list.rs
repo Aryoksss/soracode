@@ -68,4 +68,24 @@ impl Session {
         )?;
         Ok(n > 0)
     }
+
+    /// Delete a session and everything belonging to it. Returns whether a
+    /// session was actually removed, so callers can distinguish "gone" from
+    /// "never existed".
+    ///
+    /// # Errors
+    /// Propagates database errors.
+    pub fn delete(path: &Path, id: &str) -> Result<bool> {
+        if !path.exists() {
+            return Ok(false);
+        }
+        let conn = Connection::open(path)?;
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, created INTEGER NOT NULL, cwd TEXT);",
+        )?;
+        conn.execute("DELETE FROM entries WHERE session_id = ?1", params![id])?;
+        conn.execute("DELETE FROM notes WHERE session_id = ?1", params![id])?;
+        let removed = conn.execute("DELETE FROM sessions WHERE id = ?1", params![id])?;
+        Ok(removed > 0)
+    }
 }

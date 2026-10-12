@@ -1,6 +1,6 @@
 //! Key handling for the interactive terminal UI.
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::{command, sidebar, App, Line2};
@@ -18,8 +18,33 @@ impl App {
                 self.auto_scroll = false;
                 self.scroll = self.scroll.saturating_add(3);
             }
+            MouseEventKind::Down(MouseButton::Left) => self.click_at(m.column, m.row),
             _ => {}
         }
+    }
+
+    fn click_at(&mut self, col: u16, row: u16) {
+        let a = self.sidebar_area;
+        let inside = col >= a.x
+            && col < a.x.saturating_add(a.width)
+            && row >= a.y
+            && row < a.y.saturating_add(a.height);
+        if !inside {
+            self.sidebar_focus = false;
+            return;
+        }
+        let Some(offset) = row.checked_sub(a.y).and_then(|r| r.checked_sub(1)) else {
+            return;
+        };
+        let index = offset as usize;
+        if index >= self.sessions.len() {
+            return;
+        }
+        self.sidebar_index = index;
+        if let Some(id) = self.resume_selected() {
+            self.status = format!("resumed session {id}");
+        }
+        self.sidebar_focus = false;
     }
 
     /// Keys while the session sidebar holds focus: move the highlight, resume
@@ -40,6 +65,9 @@ impl App {
                     self.status = format!("resumed session {id}");
                 }
                 self.sidebar_focus = false;
+            }
+            (KeyCode::Char('d'), _) | (KeyCode::Delete, _) => {
+                self.status = self.delete_selected();
             }
             _ => {}
         }

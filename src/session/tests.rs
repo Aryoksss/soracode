@@ -42,3 +42,26 @@ fn exists_is_true_after_open() {
     assert!(Session::exists(&path, s.id()).unwrap());
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[test]
+fn delete_removes_the_session_and_its_entries() {
+    let (dir, path) = temp_db("delete");
+    let a = Session::open(&path, None).unwrap();
+    a.append("user", "hi", None).unwrap();
+    let id = a.id().to_string();
+    drop(a);
+
+    assert!(Session::delete(&path, &id).unwrap());
+    assert!(!Session::exists(&path, &id).unwrap());
+    assert_eq!(Session::latest(&path).unwrap(), None);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn delete_of_an_unknown_id_reports_false() {
+    let (dir, path) = temp_db("delete-unknown");
+    let s = Session::open(&path, None).unwrap();
+    assert!(!Session::delete(&path, "deadbeef").unwrap());
+    drop(s);
+    let _ = std::fs::remove_dir_all(dir);
+}

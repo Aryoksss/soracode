@@ -236,13 +236,17 @@ followed them is.
 | `Ctrl-U` | clear the input line |
 | `PageUp` / `PageDown` | scroll the transcript |
 | `Home` / `End` | jump to the top / follow the newest output |
-| `Tab` | focus the session sidebar (arrows move, `Enter` resumes) |
+| `Tab` | focus the session sidebar (arrows move, `Enter` resumes, `d` deletes) |
 | `Ctrl-B` | show or hide the session sidebar |
 | `Ctrl-T` | show or hide the model's thinking |
 | `Ctrl-L` | clear the transcript pane |
 | `F2` | release mouse capture so drag-select can copy |
 | `Ctrl-C` | cancel the running turn; quit when idle |
 | `Ctrl-Q` | quit |
+
+The session sidebar accepts the mouse too: click a row to resume it. Press `d`
+(or `Delete`) on a focused row to delete that session — the currently open
+session is protected, so switch away from it first.
 
 On exit the TUI prints the session id and the exact command to resume it, so a
 run can be picked up again without consulting `--sessions`:

@@ -29,7 +29,8 @@ pub(crate) fn shared(session: Session) -> SharedSession {
     Arc::new(Mutex::new(Arc::new(session)))
 }
 
-pub(super) fn draw(app: &App, f: &mut ratatui::Frame<'_>, area: Rect) {
+pub(super) fn draw(app: &mut App, f: &mut ratatui::Frame<'_>, area: Rect) {
+    app.sidebar_area = area;
     let lines: Vec<Line> = if app.sessions.is_empty() {
         vec![Line::from(Span::styled(
             " no recent sessions ",
@@ -65,7 +66,7 @@ pub(super) fn draw(app: &App, f: &mut ratatui::Frame<'_>, area: Rect) {
         theme::BORDER
     };
     let title = if app.sidebar_focus {
-        " sessions — Enter resumes "
+        " sessions — Enter resume · d delete "
     } else {
         " sessions "
     };
@@ -123,6 +124,29 @@ impl App {
         self.thinking.clear();
         self.current_stream.clear();
         Some(id)
+    }
+
+    /// Permanently delete the highlighted session. Refuses when it is the one
+    /// currently open, because the run loop still holds it. Returns a status
+    /// line describing the outcome.
+    pub(super) fn delete_selected(&mut self) -> String {
+        let Some((id, _)) = self.sessions.get(self.sidebar_index).cloned() else {
+            return "no session to delete".into();
+        };
+        if self.shared_session.lock().unwrap().id() == id {
+            return format!("cannot delete the open session {id}; switch first");
+        }
+        match Session::delete(&self.db_path, &id) {
+            Ok(true) => {
+                self.sessions = load_sessions(&self.cfg);
+                if self.sidebar_index >= self.sessions.len() {
+                    self.sidebar_index = self.sessions.len().saturating_sub(1);
+                }
+                format!("deleted session {id}")
+            }
+            Ok(false) => "session already gone".into(),
+            Err(e) => format!("delete failed: {e}"),
+        }
     }
 }
 

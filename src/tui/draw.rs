@@ -48,7 +48,7 @@ impl App {
         self.draw_status(f, chunks[3]);
     }
 
-    fn draw_sidebar(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
+    fn draw_sidebar(&mut self, f: &mut ratatui::Frame<'_>, area: Rect) {
         super::sidebar::draw(self, f, area);
     }
 

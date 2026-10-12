@@ -101,6 +101,7 @@ pub struct App {
     db_path: std::path::PathBuf,
     mouse_capture: bool,
     cancel: Arc<tokio::sync::Notify>,
+    sidebar_area: ratatui::layout::Rect,
 }
 
 /// A submitted instruction plus the channel to receive its events.
@@ -152,6 +153,7 @@ impl App {
             shared_session: session,
             db_path,
             cancel: Arc::new(tokio::sync::Notify::new()),
+            sidebar_area: ratatui::layout::Rect::default(),
         }
     }
 

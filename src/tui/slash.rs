@@ -38,6 +38,8 @@ impl App {
                     "PgUp/PgDn scroll",
                     "Home/End top/newest",
                     "Tab sidebar",
+                    "sidebar: click or ↑↓ then Enter to resume",
+                    "sidebar: d or Delete deletes a session",
                     "Ctrl-B hide sidebar",
                     "Ctrl-T thinking",
                     "Ctrl-L clear transcript",
