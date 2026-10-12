@@ -184,13 +184,16 @@ correctly; it is not treated as an empty reply.
 | `tools` | list what is installed on this host |
 | `subagent` | run several self-contained tasks in parallel |
 | `nmap_parse` | parse nmap XML into hosts and services in the engagement state |
+| `nuclei_parse` | parse nuclei JSONL into findings, one per template match |
+| `cme_parse` | parse NetExec / CrackMapExec output into hosts, creds and admin access |
 | `state_update` | record a vuln, credential, foothold or graph edge |
 | `state_query` | read the shared engagement state back out |
 
 The engagement state (hosts, services, vulns, creds, access, edges) lives in
 the same SQLite database as the transcript, so it survives a restart and is
 shared by every agent — a port the scanner finds is visible to the enumerator
-immediately.
+immediately. Findings, credentials and footholds are deduplicated by content,
+so re-parsing the same tool output never multiplies rows.
 
 Subagents get their own context and cannot see the parent conversation, so
 their instruction must be self-contained. Depth is capped by

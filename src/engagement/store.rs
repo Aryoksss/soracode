@@ -53,7 +53,8 @@ impl Engagement {
         let conn = self.conn();
         conn.execute(
             "INSERT INTO eng_vulns (session_id, host, title, severity, status, evidence)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(session_id, host, title, severity, evidence) DO NOTHING",
             params![
                 self.session_id,
                 v.host,
@@ -74,7 +75,8 @@ impl Engagement {
         let conn = self.conn();
         conn.execute(
             "INSERT INTO eng_creds (session_id, username, secret, kind, domain)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(session_id, username, secret, kind, domain) DO NOTHING",
             params![self.session_id, c.username, c.secret, c.kind, c.domain],
         )?;
         Ok(conn.last_insert_rowid())
@@ -88,7 +90,8 @@ impl Engagement {
         let conn = self.conn();
         conn.execute(
             "INSERT INTO eng_access (session_id, host, method, level, username)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(session_id, host, method, level, username) DO NOTHING",
             params![self.session_id, a.host, a.method, a.level, a.username],
         )?;
         Ok(conn.last_insert_rowid())

@@ -68,6 +68,8 @@ impl Registry {
             Box::new(notes::RecallTool::new(ctx.clone())),
             Box::new(host::ToolsTool::new(ctx.clone())),
             Box::new(pentest::NmapParseTool::new(ctx.clone())),
+            Box::new(pentest::NucleiParseTool::new(ctx.clone())),
+            Box::new(pentest::CmeParseTool::new(ctx.clone())),
             Box::new(pentest::StateUpdateTool::new(ctx.clone())),
             Box::new(pentest::StateQueryTool::new(ctx.clone())),
         ];

@@ -91,3 +91,35 @@ fn empty_store_renders_a_placeholder() {
     let e = store();
     assert_eq!(e.render().unwrap(), "(engagement state empty)");
 }
+
+#[test]
+fn re_adding_findings_creds_and_access_is_idempotent() {
+    let e = store();
+    let vuln = Vuln {
+        host: "10.0.0.1".into(),
+        title: "CVE-2021-41773".into(),
+        severity: "critical".into(),
+        status: "suspected".into(),
+        evidence: "http://10.0.0.1/cgi-bin/".into(),
+    };
+    let cred = Cred {
+        username: "svc".into(),
+        secret: "Summer2024!".into(),
+        kind: "password".into(),
+        domain: Some("corp.local".into()),
+    };
+    let access = Access {
+        host: "10.0.0.1".into(),
+        method: "smb".into(),
+        level: "admin".into(),
+        username: Some("corp.local\\adm".into()),
+    };
+    for _ in 0..3 {
+        e.add_vuln(&vuln).unwrap();
+        e.add_cred(&cred).unwrap();
+        e.add_access(&access).unwrap();
+    }
+    assert_eq!(e.vulns().unwrap().len(), 1);
+    assert_eq!(e.creds().unwrap().len(), 1);
+    assert_eq!(e.access().unwrap().len(), 1);
+}

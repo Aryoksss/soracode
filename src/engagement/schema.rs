@@ -55,7 +55,28 @@ pub(super) fn create(conn: &Connection) -> Result<()> {
              kind       TEXT NOT NULL,
              to_node    TEXT NOT NULL,
              PRIMARY KEY (session_id, from_node, kind, to_node)
-         );",
+         );
+         -- Findings, credentials and footholds are deduplicated by content so
+         -- re-parsing the same tool output does not multiply rows. Old rows
+         -- from before these indexes existed are collapsed first.
+         DELETE FROM eng_vulns WHERE id NOT IN (
+             SELECT MIN(id) FROM eng_vulns
+             GROUP BY session_id, host, title, severity, evidence
+         );
+         DELETE FROM eng_creds WHERE id NOT IN (
+             SELECT MIN(id) FROM eng_creds
+             GROUP BY session_id, username, secret, kind, domain
+         );
+         DELETE FROM eng_access WHERE id NOT IN (
+             SELECT MIN(id) FROM eng_access
+             GROUP BY session_id, host, method, level, username
+         );
+         CREATE UNIQUE INDEX IF NOT EXISTS eng_vulns_key
+             ON eng_vulns(session_id, host, title, severity, evidence);
+         CREATE UNIQUE INDEX IF NOT EXISTS eng_creds_key
+             ON eng_creds(session_id, username, secret, kind, domain);
+         CREATE UNIQUE INDEX IF NOT EXISTS eng_access_key
+             ON eng_access(session_id, host, method, level, username);",
     )?;
     Ok(())
 }
