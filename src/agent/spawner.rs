@@ -42,7 +42,12 @@ impl SubagentSpawner {
 
 #[async_trait::async_trait]
 impl Spawner for SubagentSpawner {
-    async fn spawn(&self, instruction: &str, label: Option<String>) -> Result<String> {
+    async fn spawn(
+        &self,
+        instruction: &str,
+        role: Option<String>,
+        label: Option<String>,
+    ) -> Result<String> {
         if self.depth >= self.config.subagent_max_depth {
             return Err(Error::Tool("subagent depth limit reached".into()));
         }
@@ -67,6 +72,7 @@ impl Spawner for SubagentSpawner {
             config: self.config.clone(),
             is_subagent: true,
             depth: self.depth + 1,
+            role,
             session: self.session.clone(),
             events: self.events.clone(),
             spawner: Some(nested_spawner),

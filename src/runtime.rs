@@ -35,6 +35,7 @@ pub(crate) fn build_agent(
         config: agent_cfg,
         is_subagent,
         depth,
+        role: None,
         session,
         events,
         spawner: Some(spawner),

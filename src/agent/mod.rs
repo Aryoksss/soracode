@@ -48,6 +48,7 @@ impl Agent {
 
         let session = spec.session;
         let is_subagent = spec.is_subagent;
+        let role = spec.role;
 
         let ctx = ToolContext {
             config: spec.config.clone(),
@@ -63,6 +64,12 @@ impl Agent {
         let mut messages = vec![Message::System {
             content: prompt::for_role(is_subagent).to_string(),
         }];
+
+        if let Some(preamble) = role.as_deref().and_then(prompt::specialist_preamble) {
+            messages.push(Message::System {
+                content: preamble.to_string(),
+            });
+        }
 
         // Root agents get an environment block covering the host's real tool set.
         if !is_subagent {

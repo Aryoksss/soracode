@@ -9,8 +9,14 @@ use crate::error::{Error, Result};
 /// Implemented by the agent layer so tools can start nested agents.
 #[async_trait]
 pub trait Spawner: Send + Sync {
-    /// Run a subagent with the given instruction and optional target hints.
-    async fn spawn(&self, instruction: &str, label: Option<String>) -> Result<String>;
+    /// Run a subagent with the given instruction, optional specialist role and
+    /// optional label.
+    async fn spawn(
+        &self,
+        instruction: &str,
+        role: Option<String>,
+        label: Option<String>,
+    ) -> Result<String>;
 }
 
 /// Spawns one or more subagents and collects their reports.
@@ -36,7 +42,8 @@ impl Tool for SubagentTool {
         "Spawn one or more autonomous subagents that work in parallel and report back. Each \
          subagent has its own tool set and context and cannot see your conversation, so the \
          instruction must be self-contained: state the target and exactly what to find or do. \
-         Pass several tasks to run them concurrently."
+         Pass several tasks to run them concurrently. Optionally set a `role` on a task to give \
+         the subagent a specialist focus: recon, enum, exploit, ad, web, or report."
     }
 
     fn schema(&self) -> Value {
@@ -50,7 +57,12 @@ impl Tool for SubagentTool {
                         "type": "object",
                         "properties": {
                             "instruction": { "type": "string", "description": "Full task for the subagent." },
-                            "label": { "type": "string", "description": "Short label used in the report." }
+                            "label": { "type": "string", "description": "Short label used in the report." },
+                            "role": {
+                                "type": "string",
+                                "enum": ["recon", "enum", "exploit", "ad", "web", "report"],
+                                "description": "Optional specialist focus for this subagent."
+                            }
                         },
                         "required": ["instruction"]
                     }
@@ -58,6 +70,11 @@ impl Tool for SubagentTool {
                 "instruction": {
                     "type": "string",
                     "description": "Single task, convenience alternative to `tasks`."
+                },
+                "role": {
+                    "type": "string",
+                    "enum": ["recon", "enum", "exploit", "ad", "web", "report"],
+                    "description": "Specialist focus for the single-task form."
                 },
                 "label": { "type": "string", "description": "Label for the single-task form." }
             }
@@ -71,14 +88,18 @@ impl Tool for SubagentTool {
             .clone()
             .ok_or_else(|| Error::Tool("subagents are unavailable in this context".into()))?;
 
-        let mut tasks: Vec<(String, Option<String>)> = Vec::new();
+        let mut tasks: Vec<(String, Option<String>, Option<String>)> = Vec::new();
         if let Some(arr) = args.get("tasks").and_then(Value::as_array) {
             for t in arr {
                 let instruction = arg_str(t, "instruction")?;
-                tasks.push((instruction, arg_str_opt(t, "label")));
+                tasks.push((instruction, arg_str_opt(t, "role"), arg_str_opt(t, "label")));
             }
         } else if let Ok(instruction) = arg_str(&args, "instruction") {
-            tasks.push((instruction, arg_str_opt(&args, "label")));
+            tasks.push((
+                instruction,
+                arg_str_opt(&args, "role"),
+                arg_str_opt(&args, "label"),
+            ));
         }
 
         if tasks.is_empty() {
@@ -90,12 +111,13 @@ impl Tool for SubagentTool {
 
         for chunk in tasks.chunks(limit) {
             let mut handles = Vec::new();
-            for (instruction, label) in chunk {
+            for (instruction, role, label) in chunk {
                 let spawner = spawner.clone();
                 let instruction = instruction.clone();
+                let role = role.clone();
                 let label = label.clone().unwrap_or_else(crate::util::short_id);
                 handles.push(tokio::spawn(async move {
-                    let result = spawner.spawn(&instruction, Some(label.clone())).await;
+                    let result = spawner.spawn(&instruction, role, Some(label.clone())).await;
                     (label, result)
                 }));
             }

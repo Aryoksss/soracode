@@ -74,6 +74,8 @@ pub struct AgentSpec {
     pub is_subagent: bool,
     /// Nesting depth (0 = root).
     pub depth: u32,
+    /// Specialist role for a subagent, if any.
+    pub role: Option<String>,
     /// Session store.
     pub session: Arc<Session>,
     /// Where UI events are sent.
