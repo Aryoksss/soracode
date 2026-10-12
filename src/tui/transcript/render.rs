@@ -14,8 +14,10 @@ pub(super) fn collect_lines(
     thinking: &str,
     show_thinking: bool,
     stream: &str,
+    active_tool: Option<usize>,
+    spinner: &str,
 ) {
-    for l in transcript {
+    for (idx, l) in transcript.iter().enumerate() {
         match l {
             Line2::User(t) => lines.push(Line::from(vec![
                 Span::styled("> ", Style::default().fg(theme::role_user())),
@@ -54,6 +56,14 @@ pub(super) fn collect_lines(
                         "⏺",
                         Style::default().fg(theme::role_tool()),
                     )));
+                }
+                if active_tool == Some(idx) {
+                    if let Some(last) = lines.last_mut() {
+                        last.spans.push(Span::styled(
+                            format!(" {spinner}"),
+                            Style::default().fg(theme::accent()),
+                        ));
+                    }
                 }
             }
             Line2::Result(t) => {

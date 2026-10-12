@@ -23,6 +23,7 @@ impl App {
                 } else {
                     args
                 };
+                self.active_tool = Some(self.transcript.len());
                 self.transcript
                     .push(Line2::Tool(format!("{name}({short})")));
                 self.current_tool = Some(format!("{name}({short})"));
@@ -30,6 +31,7 @@ impl App {
             }
             AgentEvent::ToolEnd { name, output } => {
                 self.current_tool = None;
+                self.active_tool = None;
                 if matches!(name.as_str(), "edit" | "write") {
                     self.push_file_change(&output);
                 } else {

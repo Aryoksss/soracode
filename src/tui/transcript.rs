@@ -60,6 +60,8 @@ impl App {
             &self.thinking,
             self.show_thinking,
             &self.current_stream,
+            self.active_tool,
+            self.spinner(),
         );
 
         self.apply_scroll(area);
@@ -95,6 +97,8 @@ impl App {
             &self.thinking,
             self.show_thinking,
             &self.current_stream,
+            self.active_tool,
+            self.spinner(),
         );
         lines
             .iter()
