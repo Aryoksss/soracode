@@ -93,10 +93,12 @@ impl Config {
         workspace: Option<PathBuf>,
     ) {
         if let Some(v) = base_url {
-            self.llm.base_url = v;
+            self.llm.base_url = v.clone();
+            self.cli_base_url = Some(v);
         }
         if let Some(v) = api_key {
-            self.llm.api_key = v;
+            self.llm.api_key = v.clone();
+            self.cli_api_key = Some(v);
         }
         if let Some(v) = model {
             self.llm.model = v;

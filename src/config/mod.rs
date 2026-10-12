@@ -41,6 +41,12 @@ pub struct Config {
     /// Model used when neither `--model` nor `SORACODE_MODEL` is given.
     #[serde(default)]
     pub default_model: Option<String>,
+    /// Explicit endpoint override that wins over a selected provider.
+    #[serde(skip)]
+    pub cli_base_url: Option<String>,
+    /// Explicit key override that wins over a selected provider.
+    #[serde(skip)]
+    pub cli_api_key: Option<String>,
 }
 
 /// Wrapper so `agent` can be omitted entirely in config files.
@@ -78,6 +84,8 @@ impl Default for Config {
             providers: BTreeMap::new(),
             models: BTreeMap::new(),
             default_model: None,
+            cli_base_url: None,
+            cli_api_key: None,
         }
     }
 }

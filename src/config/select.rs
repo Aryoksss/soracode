@@ -103,13 +103,22 @@ impl Config {
     /// Returns [`Error::Config`] when a named model cannot be resolved.
     pub fn resolve(&self, requested: Option<&str>) -> Result<Resolved> {
         match self.selection(requested) {
-            ModelSelection::Named(name) => self.catalog().resolve(
-                &name,
-                self.fallback(),
-                self.llm.max_tokens,
-                self.llm.temperature,
-                self.llm.timeout_secs,
-            ),
+            ModelSelection::Named(name) => {
+                let mut r = self.catalog().resolve(
+                    &name,
+                    self.fallback(),
+                    self.llm.max_tokens,
+                    self.llm.temperature,
+                    self.llm.timeout_secs,
+                )?;
+                if let Some(u) = &self.cli_base_url {
+                    r.base_url = u.clone();
+                }
+                if let Some(k) = &self.cli_api_key {
+                    r.api_key = k.clone();
+                }
+                Ok(r)
+            }
             ModelSelection::Literal(model) => Ok(Resolved {
                 name: model.clone(),
                 provider: "<inline>".into(),

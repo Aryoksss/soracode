@@ -146,3 +146,21 @@ fn a_requested_typo_is_rejected_instead_of_silently_falling_back() {
     assert!(c.resolve(Some("fst")).is_err());
     assert!(c.validate(Some("fst")).is_err());
 }
+
+#[test]
+fn cli_base_url_overrides_a_named_providers_endpoint() {
+    let mut c = with_models();
+    c.cli_base_url = Some("http://127.0.0.1:9/v1".into());
+    let r = c.resolve(Some("fast")).unwrap();
+    assert_eq!(r.base_url, "http://127.0.0.1:9/v1");
+    assert_eq!(r.api_key, "sk-router", "key stays the provider's own");
+}
+
+#[test]
+fn cli_api_key_overrides_a_named_providers_key() {
+    let mut c = with_models();
+    c.cli_api_key = Some("sk-cli".into());
+    let r = c.resolve(Some("fast")).unwrap();
+    assert_eq!(r.api_key, "sk-cli");
+    assert_eq!(r.base_url, "https://router.test/v1");
+}
