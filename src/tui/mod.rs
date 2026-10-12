@@ -15,7 +15,10 @@ mod transcript;
 #[cfg(test)]
 mod markdown_tests;
 
-use panel::{describe_sessions, describe_tools};
+use panel::{
+    describe_creds, describe_dashboard, describe_sessions, describe_targets, describe_tools,
+    describe_vulns,
+};
 use sidebar::load_sessions;
 
 pub(crate) use sidebar::shared;

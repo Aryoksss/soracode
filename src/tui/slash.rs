@@ -3,7 +3,10 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tokio::sync::mpsc::UnboundedSender;
 
-use super::{command, describe_sessions, describe_tools, App, Line2, Palette};
+use super::{
+    command, describe_creds, describe_dashboard, describe_sessions, describe_targets,
+    describe_tools, describe_vulns, App, Line2, Palette,
+};
 use crate::agent::AgentEvent;
 use crate::llm::Client;
 
@@ -54,6 +57,30 @@ impl App {
             command::Action::ShowTools => {
                 self.transcript.push(Line2::Tool(describe_tools()));
                 self.status = "tools".into();
+            }
+            command::Action::Status => {
+                for line in describe_dashboard(&self.shared_session) {
+                    self.transcript.push(Line2::Info(line));
+                }
+                self.status = "status".into();
+            }
+            command::Action::Targets => {
+                for line in describe_targets(&self.shared_session) {
+                    self.transcript.push(Line2::Info(line));
+                }
+                self.status = "targets".into();
+            }
+            command::Action::Vulns => {
+                for line in describe_vulns(&self.shared_session) {
+                    self.transcript.push(Line2::Info(line));
+                }
+                self.status = "vulns".into();
+            }
+            command::Action::Creds => {
+                for line in describe_creds(&self.shared_session) {
+                    self.transcript.push(Line2::Info(line));
+                }
+                self.status = "creds".into();
             }
             command::Action::ShowSessions => {
                 for line in describe_sessions(&self.cfg.db_path) {

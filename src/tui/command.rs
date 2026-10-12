@@ -7,6 +7,14 @@ pub enum Action {
     PickModel,
     /// Render the detected host tools into the transcript.
     ShowTools,
+    /// Render the engagement dashboard.
+    Status,
+    /// Render discovered hosts and services.
+    Targets,
+    /// Render recorded findings.
+    Vulns,
+    /// Render discovered credentials.
+    Creds,
     /// Render recent sessions into the transcript.
     ShowSessions,
     /// Render the command list and key bindings into the transcript.
@@ -38,6 +46,26 @@ pub const COMMANDS: &[Command] = &[
         name: "tools",
         desc: "list tools detected on this host",
         action: Action::ShowTools,
+    },
+    Command {
+        name: "status",
+        desc: "engagement dashboard: hosts, vulns, creds",
+        action: Action::Status,
+    },
+    Command {
+        name: "targets",
+        desc: "discovered hosts and services",
+        action: Action::Targets,
+    },
+    Command {
+        name: "vulns",
+        desc: "recorded findings by severity",
+        action: Action::Vulns,
+    },
+    Command {
+        name: "creds",
+        desc: "discovered credentials",
+        action: Action::Creds,
     },
     Command {
         name: "sessions",
@@ -125,5 +153,13 @@ mod tests {
         assert_eq!(by_name("model").map(|c| c.action), Some(Action::PickModel));
         assert!(by_name("quit ").is_none());
         assert!(by_name("/quit").is_none());
+    }
+
+    #[test]
+    fn dashboard_commands_resolve() {
+        assert_eq!(by_name("status").map(|c| c.action), Some(Action::Status));
+        assert_eq!(by_name("targets").map(|c| c.action), Some(Action::Targets));
+        assert_eq!(by_name("vulns").map(|c| c.action), Some(Action::Vulns));
+        assert_eq!(by_name("creds").map(|c| c.action), Some(Action::Creds));
     }
 }

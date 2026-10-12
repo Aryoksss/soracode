@@ -128,6 +128,12 @@ impl Engagement {
     pub(super) fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
         self.inner.lock().unwrap_or_else(|e| e.into_inner())
     }
+
+    /// The session this engagement belongs to.
+    #[must_use]
+    pub fn session_id(&self) -> &str {
+        &self.session_id
+    }
 }
 
 #[cfg(test)]

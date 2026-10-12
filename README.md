@@ -39,6 +39,11 @@ soracode --continue        # newest session, no id needed
 soracode --print-prompt
 ```
 
+Inside the TUI, slash commands drive the engagement: `/status` shows the
+dashboard (hosts, services, vulns, creds, access), `/targets` lists discovered
+hosts and their services, `/vulns` lists findings by severity, and `/creds`
+lists credentials.
+
 ## Configuration
 
 Highest precedence wins:
@@ -178,6 +183,14 @@ correctly; it is not treated as an empty reply.
 | `note` `recall` | scratch memory re-injected every turn |
 | `tools` | list what is installed on this host |
 | `subagent` | run several self-contained tasks in parallel |
+| `nmap_parse` | parse nmap XML into hosts and services in the engagement state |
+| `state_update` | record a vuln, credential, foothold or graph edge |
+| `state_query` | read the shared engagement state back out |
+
+The engagement state (hosts, services, vulns, creds, access, edges) lives in
+the same SQLite database as the transcript, so it survives a restart and is
+shared by every agent — a port the scanner finds is visible to the enumerator
+immediately.
 
 Subagents get their own context and cannot see the parent conversation, so
 their instruction must be self-contained. Depth is capped by
