@@ -44,6 +44,10 @@ impl App {
                 self.show_thinking = !self.show_thinking;
             }
 
+            (KeyCode::Char('b'), KeyModifiers::CONTROL) => {
+                self.show_sidebar = !self.show_sidebar;
+            }
+
             (KeyCode::Char('l'), KeyModifiers::CONTROL) => {
                 self.transcript.clear();
                 self.current_stream.clear();

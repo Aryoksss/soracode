@@ -6,11 +6,13 @@ mod draw;
 mod keys;
 mod markdown;
 mod panel;
+mod sidebar;
 mod slash;
 mod theme;
 mod transcript;
 
 use panel::{describe_sessions, describe_tools};
+use sidebar::load_sessions;
 
 use std::io;
 use std::sync::{Arc, Mutex};
@@ -80,6 +82,9 @@ pub struct App {
     model: String,
     show_thinking: bool,
     thinking: String,
+    sessions: Vec<(String, String)>,
+    sidebar_index: usize,
+    show_sidebar: bool,
 }
 
 /// A submitted instruction plus the channel to receive its events.
@@ -99,6 +104,7 @@ impl App {
     pub fn new(cfg: Arc<Config>, client: Arc<Mutex<Client>>) -> Self {
         let (tx, rx) = unbounded_channel();
         let model = cfg.active_model_name();
+        let sessions = load_sessions(&cfg);
         Self {
             transcript: Vec::new(),
             input: String::new(),
@@ -121,6 +127,9 @@ impl App {
             model,
             show_thinking: false,
             thinking: String::new(),
+            sessions,
+            sidebar_index: 0,
+            show_sidebar: true,
         }
     }
 

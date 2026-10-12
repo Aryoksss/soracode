@@ -7,9 +7,36 @@ use super::{command, theme, App};
 
 const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
+fn shorten(s: &str) -> String {
+    s.rsplit('/').next().unwrap_or(s).to_string()
+}
+
+fn truncate(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        let cut: String = s.chars().take(max.saturating_sub(1)).collect();
+        format!("{cut}…")
+    }
+}
+
 impl App {
     pub(super) fn draw(&mut self, f: &mut ratatui::Frame<'_>) {
         let area = f.area();
+        let (sidebar, main) = if self.show_sidebar && area.width >= 60 {
+            let cols = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Length(30), Constraint::Min(20)])
+                .split(area);
+            (Some(cols[0]), cols[1])
+        } else {
+            (None, area)
+        };
+
+        if let Some(sb) = sidebar {
+            self.draw_sidebar(f, sb);
+        }
+
         let palette_h = if self.palette.open {
             self.palette_rows().min(10) + 2
         } else {
@@ -24,7 +51,7 @@ impl App {
                 Constraint::Length(input_h),
                 Constraint::Length(1),
             ])
-            .split(area);
+            .split(main);
 
         self.draw_transcript(f, chunks[0]);
         if self.palette.open {
@@ -32,6 +59,51 @@ impl App {
         }
         self.draw_input(f, chunks[2]);
         self.draw_status(f, chunks[3]);
+    }
+
+    fn draw_sidebar(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
+        let lines: Vec<Line> = if self.sessions.is_empty() {
+            vec![Line::from(Span::styled(
+                " no recent sessions ",
+                Style::default().fg(theme::TEXT_MUTED),
+            ))]
+        } else {
+            self.sessions
+                .iter()
+                .enumerate()
+                .map(|(i, (id, summary))| {
+                    let selected = i == self.sidebar_index;
+                    let style = if selected {
+                        Style::default()
+                            .fg(theme::INTERACTIVE)
+                            .bg(theme::SELECTION_BG)
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default().fg(theme::TEXT)
+                    };
+                    let marker = if selected { "▌" } else { " " };
+                    let name = format!("{} {}", &id[..id.len().min(8)], shorten(summary));
+                    let text = format!("{marker} {}", truncate(&name, 26));
+                    Line::from(Span::styled(text, style))
+                })
+                .collect()
+        };
+
+        let para = Paragraph::new(Text::from(lines))
+            .style(Style::default().bg(theme::BG_ELEMENT))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded)
+                    .border_style(Style::default().fg(theme::BORDER))
+                    .title(Span::styled(
+                        " sessions ",
+                        Style::default()
+                            .fg(theme::ACCENT)
+                            .add_modifier(Modifier::BOLD),
+                    )),
+            );
+        f.render_widget(para, area);
     }
 
     fn input_height(&self) -> u16 {
