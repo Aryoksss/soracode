@@ -6,7 +6,20 @@ use ratatui::widgets::{
 };
 
 use super::markdown::push_markdown;
-use super::{theme, App, Line2};
+use super::{theme, App};
+
+/// A line of conversation shown in the transcript pane.
+#[derive(Clone)]
+pub(crate) enum Line2 {
+    User(String),
+    Assistant(String),
+    Tool(String),
+    Heading(String),
+    /// A finding line: `(badge, text)` where the badge picks the color.
+    Severity(String, String),
+    Info(String),
+    Error(String),
+}
 
 impl App {
     pub(super) fn draw_transcript(&mut self, f: &mut ratatui::Frame<'_>, area: Rect) {
@@ -58,6 +71,16 @@ impl App {
                         .fg(theme::ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ))),
+                Line2::Severity(badge, text) => lines.push(Line::from(vec![
+                    Span::styled("  ● ", Style::default().fg(theme::severity(badge))),
+                    Span::styled(
+                        format!("{badge:<8} "),
+                        Style::default()
+                            .fg(theme::severity(badge))
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(text.clone(), Style::default().fg(theme::TEXT_MUTED)),
+                ])),
                 Line2::Info(t) => {
                     for sub in t.lines() {
                         lines.push(Line::from(Span::styled(

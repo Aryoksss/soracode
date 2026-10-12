@@ -75,19 +75,23 @@ pub(super) fn describe_targets(session: &SharedSession) -> Vec<String> {
 }
 
 /// Recorded findings.
-pub(super) fn describe_vulns(session: &SharedSession) -> Vec<String> {
+pub(super) fn describe_vulns(session: &SharedSession) -> Vec<(String, String)> {
     let Some(e) = engagement(session) else {
-        return vec!["could not open engagement state".into()];
+        return vec![("unknown".into(), "could not open engagement state".into())];
     };
     let vulns = e.vulns().unwrap_or_default();
-    let mut out = vec![format!("vulnerabilities ({})", vulns.len())];
-    for v in vulns {
-        out.push(format!(
-            "  [{}] {} — {} ({})",
-            v.severity, v.title, v.status, v.host
-        ));
+    if vulns.is_empty() {
+        return vec![("unknown".into(), "no findings recorded yet".into())];
     }
-    out
+    vulns
+        .into_iter()
+        .map(|v| {
+            (
+                v.severity.to_ascii_lowercase(),
+                format!("{} — {} ({})", v.title, v.status, v.host),
+            )
+        })
+        .collect()
 }
 
 /// Discovered credentials.

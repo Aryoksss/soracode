@@ -1,4 +1,3 @@
-use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use ratatui::layout::Rect;
@@ -12,15 +11,8 @@ use crate::session::Session;
 
 /// Recent sessions as `(short id, summary)` pairs; empty when the store is
 /// missing or unreadable, so the UI degrades instead of failing to start.
-pub(super) fn load_sessions(cfg: &Config) -> Vec<(String, String)> {
-    let path: &Path = &cfg.db_path;
-    match Session::list(path, 20) {
-        Ok(rows) => rows
-            .into_iter()
-            .map(|(id, _c, summary)| (id, summary))
-            .collect(),
-        Err(_) => Vec::new(),
-    }
+pub(super) fn load_sessions(cfg: &Config) -> Vec<(String, i64, String)> {
+    Session::list(&cfg.db_path, 20).unwrap_or_default()
 }
 
 /// Build the shared, swappable session handle used by the TUI and its
@@ -40,14 +32,15 @@ pub(super) fn draw(app: &mut App, f: &mut ratatui::Frame<'_>, area: Rect) {
         app.sessions
             .iter()
             .enumerate()
-            .map(|(i, (id, summary))| {
+            .map(|(i, (id, ts, summary))| {
                 let selected = i == app.sidebar_index;
-                let (bg, marker_fg, id_fg, sum_fg) = if selected {
+                let (bg, marker_fg, id_fg, sum_fg, time_fg) = if selected {
                     (
                         theme::SELECTION_BG,
                         theme::ACCENT,
                         theme::TEXT,
                         theme::TEXT_MUTED,
+                        theme::TEXT_DIM,
                     )
                 } else {
                     (
@@ -55,24 +48,27 @@ pub(super) fn draw(app: &mut App, f: &mut ratatui::Frame<'_>, area: Rect) {
                         theme::PANEL_BG,
                         theme::TEXT,
                         theme::TEXT_DIM,
+                        theme::TEXT_DIM,
                     )
                 };
                 let marker = if selected { "▌" } else { " " };
                 let short = &id[..id.len().min(8)];
-                let name = format!("{} ", shorten(summary));
+                let name = shorten(summary);
+                let when = relative_time(*ts);
                 Line::from(vec![
                     Span::styled(format!("{marker} "), Style::default().fg(marker_fg).bg(bg)),
                     Span::styled(
-                        short,
+                        format!("{short:<9}"),
                         Style::default()
                             .fg(id_fg)
                             .bg(bg)
                             .add_modifier(Modifier::BOLD),
                     ),
                     Span::styled(
-                        format!(" {}", truncate(&name, 18)),
-                        Style::default().fg(sum_fg).bg(bg),
+                        format!("{:<9}", truncate(&when, 8)),
+                        Style::default().fg(time_fg).bg(bg),
                     ),
+                    Span::styled(truncate(&name, 13), Style::default().fg(sum_fg).bg(bg)),
                 ])
             })
             .collect()
@@ -110,6 +106,19 @@ fn shorten(s: &str) -> String {
     s.rsplit('/').next().unwrap_or(s).to_string()
 }
 
+/// Compact "how long ago" label for a unix timestamp, newest = "now".
+fn relative_time(ts: i64) -> String {
+    let now = chrono::Utc::now().timestamp();
+    let secs = now.saturating_sub(ts).max(0);
+    match secs {
+        0..=59 => "now".into(),
+        60..=3599 => format!("{}m", secs / 60),
+        3600..=86_399 => format!("{}h", secs / 3600),
+        86_400..=2_591_999 => format!("{}d", secs / 86_400),
+        _ => format!("{}w", secs / 604_800),
+    }
+}
+
 fn truncate(s: &str, max: usize) -> String {
     if s.chars().count() <= max {
         s.to_string()
@@ -133,7 +142,7 @@ impl App {
     /// empty or the store cannot be reopened. The transcript is rebuilt from
     /// stored entries so the operator sees what they are resuming.
     pub(super) fn resume_selected(&mut self) -> Option<String> {
-        let (id, _) = self.sessions.get(self.sidebar_index)?.clone();
+        let (id, _, _) = self.sessions.get(self.sidebar_index)?.clone();
         let session = Session::open(&self.db_path, Some(&id)).ok()?;
         self.transcript = rebuild(&session);
         *self.shared_session.lock().unwrap() = Arc::new(session);
@@ -150,7 +159,7 @@ impl App {
     /// currently open, because the run loop still holds it. Returns a status
     /// line describing the outcome.
     pub(super) fn delete_selected(&mut self) -> String {
-        let Some((id, _)) = self.sessions.get(self.sidebar_index).cloned() else {
+        let Some((id, _, _)) = self.sessions.get(self.sidebar_index).cloned() else {
             return "no session to delete".into();
         };
         if self.shared_session.lock().unwrap().id() == id {

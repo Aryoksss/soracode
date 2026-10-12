@@ -79,7 +79,14 @@ impl App {
                 self.status = "matrix".into();
             }
             command::Action::Vulns => {
-                self.push_panel(describe_vulns(&self.shared_session));
+                let findings = describe_vulns(&self.shared_session);
+                self.transcript.push(Line2::Heading(format!(
+                    "vulnerabilities ({})",
+                    findings.len()
+                )));
+                for (badge, text) in findings {
+                    self.transcript.push(Line2::Severity(badge, text));
+                }
                 self.status = "vulns".into();
             }
             command::Action::Creds => {

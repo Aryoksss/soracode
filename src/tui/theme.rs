@@ -48,3 +48,15 @@ pub(super) const ROLE_USER: Color = Color::Rgb(167, 139, 250);
 pub(super) const ROLE_ASSISTANT: Color = Color::Rgb(134, 222, 150);
 /// A tool call or its result.
 pub(super) const ROLE_TOOL: Color = Color::Rgb(122, 194, 240);
+
+// ── severity ───────────────────────────────────────────────────────────────
+/// Finding severity colors, keyed by the lowercase badge text.
+pub(super) fn severity(badge: &str) -> Color {
+    match badge {
+        "critical" => Color::Rgb(255, 92, 118),
+        "high" => Color::Rgb(255, 123, 137),
+        "medium" => Color::Rgb(247, 178, 103),
+        "low" => Color::Rgb(122, 194, 240),
+        _ => TEXT_MUTED,
+    }
+}

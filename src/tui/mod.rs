@@ -48,16 +48,7 @@ use crate::session::Session;
 /// sidebar so a user can resume a different session without restarting.
 pub(super) type SharedSession = Arc<Mutex<Arc<Session>>>;
 
-/// A line of conversation shown in the transcript pane.
-#[derive(Clone)]
-enum Line2 {
-    User(String),
-    Assistant(String),
-    Tool(String),
-    Heading(String),
-    Info(String),
-    Error(String),
-}
+pub(super) use transcript::Line2;
 
 /// State of the slash-command palette.
 struct Palette {
@@ -100,7 +91,7 @@ pub struct App {
     model: String,
     show_thinking: bool,
     thinking: String,
-    sessions: Vec<(String, String)>,
+    sessions: Vec<(String, i64, String)>,
     sidebar_index: usize,
     show_sidebar: bool,
     sidebar_focus: bool,
