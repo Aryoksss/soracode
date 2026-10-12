@@ -37,9 +37,7 @@ impl App {
             }
             (KeyCode::Enter, _) => {
                 if let Some(id) = self.resume_selected() {
-                    self.transcript.clear();
-                    self.current_stream.clear();
-                    self.status = format!("resumed session {id} — context reloads on next send");
+                    self.status = format!("resumed session {id}");
                 }
                 self.sidebar_focus = false;
             }

@@ -6,7 +6,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph};
 
-use super::{theme, App, SharedSession};
+use super::{theme, App, Line2, SharedSession};
 use crate::config::Config;
 use crate::session::Session;
 
@@ -102,12 +102,38 @@ fn truncate(s: &str, max: usize) -> String {
 impl App {
     /// Open the highlighted session and make it the target of the next
     /// submission. Returns the new session id, or `None` when the sidebar is
-    /// empty or the store cannot be reopened.
+    /// empty or the store cannot be reopened. The transcript is rebuilt from
+    /// stored entries so the operator sees what they are resuming.
     pub(super) fn resume_selected(&mut self) -> Option<String> {
         let (id, _) = self.sessions.get(self.sidebar_index)?.clone();
         let session = Session::open(&self.db_path, Some(&id)).ok()?;
+        self.transcript = rebuild(&session);
         *self.shared_session.lock().unwrap() = Arc::new(session);
         self.sessions = load_sessions(&self.cfg);
+        self.scroll = 0;
+        self.auto_scroll = true;
+        self.thinking.clear();
+        self.current_stream.clear();
         Some(id)
     }
+}
+
+fn rebuild(session: &Session) -> Vec<Line2> {
+    let Ok(entries) = session.entries() else {
+        return Vec::new();
+    };
+    entries
+        .into_iter()
+        .filter_map(|e| {
+            let content = e.content;
+            if content.trim().is_empty() {
+                return None;
+            }
+            Some(match e.role.as_str() {
+                "user" => Line2::User(content),
+                "tool" => Line2::Tool(content),
+                _ => Line2::Assistant(content),
+            })
+        })
+        .collect()
 }
