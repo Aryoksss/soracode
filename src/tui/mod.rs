@@ -8,8 +8,12 @@ mod markdown;
 mod panel;
 mod sidebar;
 mod slash;
+mod table;
 mod theme;
 mod transcript;
+
+#[cfg(test)]
+mod markdown_tests;
 
 use panel::{describe_sessions, describe_tools};
 use sidebar::load_sessions;

@@ -1,20 +1,38 @@
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
+use super::table;
 use super::theme;
 
 pub(super) fn push_markdown(lines: &mut Vec<Line>, text: &str, base: Color) {
-    for raw in text.lines() {
-        lines.push(render_line(raw, base));
+    let rows: Vec<&str> = text.lines().collect();
+    let mut i = 0;
+    while i < rows.len() {
+        if let Some(end) = table::table_end(&rows, i) {
+            table::push_table(lines, &rows[i..end], base);
+            i = end;
+            continue;
+        }
+        lines.push(render_line(rows[i], base));
+        i += 1;
     }
 }
 
-fn render_line(raw: &str, base: Color) -> Line<'static> {
+pub(super) fn render_line(raw: &str, base: Color) -> Line<'static> {
     if is_rule(raw) {
         return Line::from(Span::styled(
             "─".repeat(40),
             Style::default().fg(theme::BORDER),
         ));
+    }
+
+    if let Some(rest) = raw.trim_start().strip_prefix('>') {
+        let mut spans = vec![Span::styled(
+            "  ▏ ".to_string(),
+            Style::default().fg(theme::ACCENT),
+        )];
+        spans.extend(inline(rest.trim_start(), base));
+        return Line::from(spans);
     }
 
     let (indent, body) = marker(raw);
@@ -156,56 +174,4 @@ fn delimited<'a>(s: &'a str, delim: &str) -> Option<(&'a str, &'a str)> {
         return None;
     }
     Some((&body[..end], &body[end + delim.len()..]))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ratatui::style::Color;
-
-    fn text(line: &Line<'_>) -> String {
-        line.spans.iter().map(|s| s.content.as_ref()).collect()
-    }
-
-    #[test]
-    fn heading_is_rendered_without_hashes() {
-        let l = render_line("## Title", Color::White);
-        assert_eq!(text(&l).trim(), "Title");
-    }
-
-    #[test]
-    fn nested_bullets_indent_by_depth() {
-        let shallow = render_line("- a", Color::White);
-        let deep = render_line("    - a", Color::White);
-        assert!(text(&deep).starts_with("      • "), "deep: {}", text(&deep));
-        assert!(
-            text(&shallow).starts_with("  • "),
-            "shallow: {}",
-            text(&shallow)
-        );
-    }
-
-    #[test]
-    fn numbered_items_keep_their_number() {
-        let l = render_line("3. third", Color::White);
-        assert!(text(&l).contains("3. third"));
-    }
-
-    #[test]
-    fn links_show_label_and_url() {
-        let l = render_line("see [home](https://x.test) now", Color::White);
-        assert!(text(&l).contains("home (https://x.test) now"));
-    }
-
-    #[test]
-    fn code_spans_are_not_reparsed_for_emphasis() {
-        let l = render_line("use `a*b*c` here", Color::White);
-        assert!(text(&l).contains("a*b*c"));
-    }
-
-    #[test]
-    fn rule_becomes_a_line() {
-        let l = render_line("---", Color::White);
-        assert!(text(&l).starts_with('─'));
-    }
 }
