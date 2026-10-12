@@ -71,6 +71,15 @@ impl App {
                 self.show_thinking = !self.show_thinking;
             }
 
+            (KeyCode::F(2), _) => {
+                self.mouse_capture = !self.mouse_capture;
+                self.status = if self.mouse_capture {
+                    "mouse capture on — wheel scrolls the transcript".into()
+                } else {
+                    "mouse capture off — drag to select and copy".into()
+                };
+            }
+
             (KeyCode::Char('b'), KeyModifiers::CONTROL) => {
                 self.show_sidebar = !self.show_sidebar;
                 if self.show_sidebar {

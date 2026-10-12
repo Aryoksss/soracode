@@ -155,7 +155,7 @@ impl App {
             spans.extend(self.shimmer(&format!("{} working…  Ctrl-C cancel", self.spinner())));
         } else {
             spans.push(Span::styled(
-                "Enter send  Tab sessions  ↑↓ history  PgUp/PgDn scroll  / commands",
+                self.status.clone(),
                 Style::default().fg(theme::TEXT_MUTED),
             ));
         }

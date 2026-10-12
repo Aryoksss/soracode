@@ -45,7 +45,8 @@ impl App {
             AgentEvent::Done => {
                 self.flush_stream();
                 self.busy = false;
-                self.status = "ready — type an instruction and press Enter".into();
+                self.status =
+                    "ready — Enter send  Tab sessions  ↑↓ history  F2 copy  / commands".into();
                 self.auto_scroll = true;
                 if self.show_sidebar {
                     super::sidebar::refresh(self);

@@ -95,6 +95,7 @@ pub struct App {
     sidebar_focus: bool,
     shared_session: SharedSession,
     db_path: std::path::PathBuf,
+    mouse_capture: bool,
 }
 
 /// A submitted instruction plus the channel to receive its events.
@@ -121,7 +122,7 @@ impl App {
             input: String::new(),
             history: Vec::new(),
             history_at: None,
-            status: "ready — type an instruction, or / for commands".into(),
+            status: "ready — Enter send  Tab sessions  ↑↓ history  F2 copy  / commands".into(),
             scroll: 0,
             auto_scroll: true,
             events: Some(rx),
@@ -142,6 +143,7 @@ impl App {
             sidebar_index: 0,
             show_sidebar: true,
             sidebar_focus: false,
+            mouse_capture: true,
             shared_session: session,
             db_path,
         }
@@ -205,6 +207,7 @@ impl App {
             }
 
             if event::poll(Duration::from_millis(50))? {
+                let before = self.mouse_capture;
                 match event::read()? {
                     Event::Key(key) => {
                         if self.handle_key(key, on_submit) {
@@ -214,6 +217,14 @@ impl App {
                     Event::Resize(_, _) => {}
                     Event::Mouse(m) => self.handle_mouse(m),
                     _ => {}
+                }
+                if before != self.mouse_capture {
+                    let mut out = io::stdout();
+                    if self.mouse_capture {
+                        execute!(out, crossterm::event::EnableMouseCapture)?;
+                    } else {
+                        execute!(out, crossterm::event::DisableMouseCapture)?;
+                    }
                 }
             }
         }
