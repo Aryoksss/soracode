@@ -59,8 +59,15 @@ impl App {
         }
 
         match (key.code, key.modifiers) {
-            (KeyCode::Char('c'), KeyModifiers::CONTROL)
-            | (KeyCode::Char('q'), KeyModifiers::CONTROL) => return true,
+            (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
+                if self.busy {
+                    self.cancel.notify_one();
+                    self.status = "cancelling…".into();
+                    return false;
+                }
+                return true;
+            }
+            (KeyCode::Char('q'), KeyModifiers::CONTROL) => return true,
 
             (KeyCode::Char('u'), KeyModifiers::CONTROL) => {
                 self.input.clear();

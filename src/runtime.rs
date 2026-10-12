@@ -76,18 +76,31 @@ pub(crate) fn run_tui(client: Client, cfg: Arc<Config>, session: Arc<Session>) -
     let cb_cfg = cfg.clone();
     let cb_shared = shared.clone();
     let cb_client = client.clone();
+    let cancel = app.cancel_notify();
 
     app.run(move |instruction, tx| {
         let cfg = cb_cfg.clone();
         let session = cb_shared.lock().expect("session mutex").clone();
         let client = cb_client.lock().expect("client mutex").clone();
         let tx2 = tx.clone();
+        let cancel = cancel.clone();
 
         tokio::spawn(async move {
             match build_agent(client, &cfg, session.clone(), Some(tx.clone()), 0, false) {
                 Ok(mut agent) => {
-                    if let Err(e) = agent.run(&instruction).await {
-                        let _ = tx2.send(AgentEvent::Error(e.to_string()));
+                    {
+                        let turn = agent.run(&instruction);
+                        tokio::pin!(turn);
+                        tokio::select! {
+                            r = &mut turn => {
+                                if let Err(e) = r {
+                                    let _ = tx2.send(AgentEvent::Error(e.to_string()));
+                                }
+                            }
+                            _ = cancel.notified() => {
+                                let _ = tx2.send(AgentEvent::Cancelled);
+                            }
+                        }
                     }
                     let _ = agent.flush_notes();
                 }

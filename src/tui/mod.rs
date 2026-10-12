@@ -100,6 +100,7 @@ pub struct App {
     shared_session: SharedSession,
     db_path: std::path::PathBuf,
     mouse_capture: bool,
+    cancel: Arc<tokio::sync::Notify>,
 }
 
 /// A submitted instruction plus the channel to receive its events.
@@ -150,7 +151,14 @@ impl App {
             mouse_capture: true,
             shared_session: session,
             db_path,
+            cancel: Arc::new(tokio::sync::Notify::new()),
         }
+    }
+
+    /// A handle to signal cancellation of the running turn.
+    #[must_use]
+    pub fn cancel_notify(&self) -> Arc<tokio::sync::Notify> {
+        self.cancel.clone()
     }
 
     /// Sender the agent should publish events to.

@@ -52,6 +52,12 @@ impl App {
                     super::sidebar::refresh(self);
                 }
             }
+            AgentEvent::Cancelled => {
+                self.flush_stream();
+                self.busy = false;
+                self.status = "cancelled".into();
+                self.auto_scroll = true;
+            }
         }
     }
 

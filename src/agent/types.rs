@@ -49,6 +49,9 @@ pub enum AgentEvent {
     Error(String),
     /// The turn finished.
     Done,
+    /// The turn was cancelled by the operator.
+    #[allow(dead_code)] // emitted by the TUI cancel path
+    Cancelled,
 }
 
 /// Result of a completed top-level instruction.

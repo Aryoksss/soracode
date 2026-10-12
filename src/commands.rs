@@ -102,6 +102,7 @@ pub fn print_event(ev: AgentEvent) {
         AgentEvent::Info(m) => println!("\x1b[90m{m}\x1b[0m"),
         AgentEvent::Error(m) => eprintln!("\x1b[31m{m}\x1b[0m"),
         AgentEvent::Done => {}
+        AgentEvent::Cancelled => {}
     }
 }
 
