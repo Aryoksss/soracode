@@ -14,6 +14,8 @@ mod transcript;
 use panel::{describe_sessions, describe_tools};
 use sidebar::load_sessions;
 
+pub(crate) use sidebar::shared;
+
 use std::io;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -30,6 +32,11 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use crate::agent::AgentEvent;
 use crate::config::Config;
 use crate::llm::Client;
+use crate::session::Session;
+
+/// The session the next submission will run against, swappable from the
+/// sidebar so a user can resume a different session without restarting.
+pub(super) type SharedSession = Arc<Mutex<Arc<Session>>>;
 
 /// A line of conversation shown in the transcript pane.
 #[derive(Clone)]
@@ -85,6 +92,9 @@ pub struct App {
     sessions: Vec<(String, String)>,
     sidebar_index: usize,
     show_sidebar: bool,
+    sidebar_focus: bool,
+    shared_session: SharedSession,
+    db_path: std::path::PathBuf,
 }
 
 /// A submitted instruction plus the channel to receive its events.
@@ -101,10 +111,11 @@ impl App {
     ///
     /// The client is shared so `/model` can replace it for later submissions.
     #[must_use]
-    pub fn new(cfg: Arc<Config>, client: Arc<Mutex<Client>>) -> Self {
+    pub fn new(cfg: Arc<Config>, client: Arc<Mutex<Client>>, session: SharedSession) -> Self {
         let (tx, rx) = unbounded_channel();
         let model = cfg.active_model_name();
         let sessions = load_sessions(&cfg);
+        let db_path = cfg.db_path.clone();
         Self {
             transcript: Vec::new(),
             input: String::new(),
@@ -130,6 +141,9 @@ impl App {
             sessions,
             sidebar_index: 0,
             show_sidebar: true,
+            sidebar_focus: false,
+            shared_session: session,
+            db_path,
         }
     }
 

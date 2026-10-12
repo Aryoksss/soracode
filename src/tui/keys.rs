@@ -22,6 +22,32 @@ impl App {
         }
     }
 
+    /// Keys while the session sidebar holds focus: move the highlight, resume
+    /// the highlighted session, or hand focus back to the input.
+    fn handle_sidebar_key(&mut self, key: KeyEvent) -> bool {
+        match (key.code, key.modifiers) {
+            (KeyCode::Char('c'), KeyModifiers::CONTROL)
+            | (KeyCode::Char('q'), KeyModifiers::CONTROL) => return true,
+            (KeyCode::Esc, _) | (KeyCode::Tab, _) => self.sidebar_focus = false,
+            (KeyCode::Up, _) => self.sidebar_index = self.sidebar_index.saturating_sub(1),
+            (KeyCode::Down, _) => {
+                if self.sidebar_index + 1 < self.sessions.len() {
+                    self.sidebar_index += 1;
+                }
+            }
+            (KeyCode::Enter, _) => {
+                if let Some(id) = self.resume_selected() {
+                    self.transcript.clear();
+                    self.current_stream.clear();
+                    self.status = format!("resumed session {id} — context reloads on next send");
+                }
+                self.sidebar_focus = false;
+            }
+            _ => {}
+        }
+        self.quit
+    }
+
     /// Returns true when the app should exit.
     pub(super) fn handle_key<F>(&mut self, key: KeyEvent, on_submit: &mut F) -> bool
     where
@@ -29,6 +55,9 @@ impl App {
     {
         if self.palette.open {
             return self.handle_palette_key(key, on_submit);
+        }
+        if self.sidebar_focus {
+            return self.handle_sidebar_key(key);
         }
 
         match (key.code, key.modifiers) {
@@ -46,6 +75,13 @@ impl App {
 
             (KeyCode::Char('b'), KeyModifiers::CONTROL) => {
                 self.show_sidebar = !self.show_sidebar;
+                if !self.show_sidebar {
+                    self.sidebar_focus = false;
+                }
+            }
+
+            (KeyCode::Tab, _) if self.show_sidebar => {
+                self.sidebar_focus = true;
             }
 
             (KeyCode::Char('l'), KeyModifiers::CONTROL) => {

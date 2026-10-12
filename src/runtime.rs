@@ -70,15 +70,16 @@ pub(crate) async fn run_once(
 /// Run the interactive TUI until the operator quits.
 pub(crate) fn run_tui(client: Client, cfg: Arc<Config>, session: Arc<Session>) -> Result<()> {
     let client = Arc::new(Mutex::new(client));
-    let mut app = tui::App::new(cfg.clone(), client.clone());
+    let shared = tui::shared((*session).clone());
+    let mut app = tui::App::new(cfg.clone(), client.clone(), shared.clone());
 
     let cb_cfg = cfg.clone();
-    let cb_session = session.clone();
+    let cb_shared = shared.clone();
     let cb_client = client.clone();
 
     app.run(move |instruction, tx| {
         let cfg = cb_cfg.clone();
-        let session = cb_session.clone();
+        let session = cb_shared.lock().expect("session mutex").clone();
         let client = cb_client.lock().expect("client mutex").clone();
         let tx2 = tx.clone();
 
