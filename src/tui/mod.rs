@@ -8,6 +8,7 @@ mod diff;
 mod draw;
 mod export;
 mod git;
+mod help;
 mod keys;
 mod markdown;
 mod mention;

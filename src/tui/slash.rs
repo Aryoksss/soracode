@@ -4,7 +4,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use super::{
     command, describe_creds, describe_dashboard, describe_matrix, describe_services,
-    describe_sessions, describe_targets, describe_tools, describe_vulns, App, Line2, Palette,
+    describe_sessions, describe_targets, describe_tools, describe_vulns, help, App, Line2, Palette,
 };
 use crate::agent::AgentEvent;
 use crate::llm::{Client, ClientConfig};
@@ -37,33 +37,7 @@ impl App {
                 self.status = "cleared".into();
             }
             command::Action::ShowHelp => {
-                self.transcript.push(Line2::Info("commands".into()));
-                for c in command::COMMANDS {
-                    self.transcript
-                        .push(Line2::Info(format!("  /{:<10}  {}", c.name, c.desc)));
-                }
-                self.transcript.push(Line2::Info(String::new()));
-                self.transcript.push(Line2::Info("keys".into()));
-                for k in [
-                    "Enter            send",
-                    "Shift+Enter, ^J  new line",
-                    "↑/↓              history",
-                    "Ctrl-U           clear input",
-                    "Ctrl-Y           copy last answer to clipboard",
-                    "PgUp/PgDn        scroll",
-                    "Home/End         top / newest",
-                    "Tab, Ctrl-B      sidebar / hide",
-                    "↑↓, Enter        resume (focus sidebar)",
-                    "d, Delete        delete session",
-                    "Ctrl-T           toggle thinking",
-                    "Ctrl-L           clear transcript",
-                    "F2               toggle wheel capture (drag selects either way)",
-                    "Ctrl-C           cancel turn / clear input",
-                    "Ctrl-C twice     quit",
-                    "Ctrl-Q           quit",
-                ] {
-                    self.transcript.push(Line2::Info(format!("  {k}")));
-                }
+                self.transcript.extend(help::screen());
                 self.status = "help".into();
             }
             command::Action::ShowTools => {
