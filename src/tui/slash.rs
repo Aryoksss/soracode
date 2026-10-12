@@ -42,7 +42,8 @@ impl App {
                     "Ctrl-T thinking",
                     "Ctrl-L clear transcript",
                     "F2 copy",
-                    "Ctrl-C quit",
+                    "Ctrl-C cancel turn / quit",
+                    "Ctrl-Q quit",
                 ] {
                     self.transcript.push(Line2::Info(format!("  key: {k}")));
                 }

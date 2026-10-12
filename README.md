@@ -241,7 +241,8 @@ followed them is.
 | `Ctrl-T` | show or hide the model's thinking |
 | `Ctrl-L` | clear the transcript pane |
 | `F2` | release mouse capture so drag-select can copy |
-| `Ctrl-C` or `Ctrl-Q` | quit |
+| `Ctrl-C` | cancel the running turn; quit when idle |
+| `Ctrl-Q` | quit |
 
 On exit the TUI prints the session id and the exact command to resume it, so a
 run can be picked up again without consulting `--sessions`:
