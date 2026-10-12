@@ -150,13 +150,17 @@ Delete a session from the TUI sidebar with `d` (or `Delete`).
 
 ## Using the TUI
 
-Type an instruction and press `Enter`. Press `/` to see commands.
+Type an instruction and press `Enter`. Press `/` to see commands. Drag to
+select text and copy it as usual — a drag is never captured by the app.
 
 | Command | Action |
 | --- | --- |
 | `/model` | pick a model |
 | `/mode <name>` | autonomy mode (`auto` / `guided` / `free`) |
 | `/pause`, `/resume` | stop before the next tool call, and continue |
+| `/compact` | trim older turns before the next message, to free context |
+| `/undo` | remove the last turn from the session and the view |
+| `/export [path]` | save the whole session to a Markdown file |
 | `/status` | engagement dashboard |
 | `/targets`, `/services` | discovered hosts, services |
 | `/vulns`, `/creds`, `/matrix` | findings, credentials, access graph |
@@ -165,10 +169,13 @@ Type an instruction and press `Enter`. Press `/` to see commands.
 
 | Key | Action |
 | --- | --- |
+| `Enter` | send; `Shift-Enter` or `Ctrl-J` for a new line |
 | `↑` / `↓` | walk back through submitted instructions |
 | `PageUp` / `PageDown` | scroll the transcript |
+| mouse wheel | scroll the transcript |
 | `Tab` | focus the session sidebar |
 | `Ctrl-B` / `Ctrl-T` | toggle sidebar / model thinking |
+| `Ctrl-Y` | copy the last reply to the terminal clipboard |
 | `Ctrl-L` | clear the transcript |
 | `Ctrl-C` | cancel the running turn; quit when idle |
 | `Ctrl-Q` | quit |
