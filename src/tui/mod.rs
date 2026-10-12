@@ -6,10 +6,13 @@ mod command;
 mod draw;
 mod keys;
 mod markdown;
+mod mention;
+mod mouse;
 mod palette;
 mod panel;
 mod sidebar;
 mod slash;
+mod status;
 mod table;
 mod theme;
 mod transcript;
@@ -17,7 +20,10 @@ mod welcome;
 
 #[cfg(test)]
 mod markdown_tests;
+#[cfg(test)]
+mod palette_tests;
 
+use palette::Palette;
 use panel::{
     describe_creds, describe_dashboard, describe_matrix, describe_services, describe_sessions,
     describe_targets, describe_tools, describe_vulns,
@@ -51,29 +57,16 @@ use crate::session::Session;
 const MOUSE_ON: &str = "\x1b[?1000h\x1b[?1002h\x1b[?1006h";
 const MOUSE_OFF: &str = "\x1b[?1000l\x1b[?1002l\x1b[?1006l";
 
+/// Bracketed paste: the terminal wraps a paste in markers so newlines in a
+/// pasted block arrive as one event instead of a burst of Enter keys.
+const PASTE_ON: &str = "\x1b[?2004h";
+const PASTE_OFF: &str = "\x1b[?2004l";
+
 /// The session the next submission will run against, swappable from the
 /// sidebar so a user can resume a different session without restarting.
 pub(super) type SharedSession = Arc<Mutex<Arc<Session>>>;
 
 pub(super) use transcript::Line2;
-
-/// State of the slash-command palette.
-struct Palette {
-    open: bool,
-    selected: usize,
-    /// `Some` while picking a model: the names offered.
-    models: Option<Vec<String>>,
-}
-
-impl Palette {
-    fn closed() -> Self {
-        Self {
-            open: false,
-            selected: 0,
-            models: None,
-        }
-    }
-}
 
 /// TUI application state.
 pub struct App {
@@ -105,6 +98,7 @@ pub struct App {
     shared_session: SharedSession,
     db_path: std::path::PathBuf,
     mouse_capture: bool,
+    ctrl_c_armed: bool,
     cancel: Arc<tokio::sync::Notify>,
     pause: Arc<std::sync::atomic::AtomicBool>,
     mode: crate::config::Mode,
@@ -128,6 +122,7 @@ impl App {
     /// The client is shared so `/model` can replace it for later submissions.
     #[must_use]
     pub fn new(cfg: Arc<Config>, client: Arc<Mutex<Client>>, session: SharedSession) -> Self {
+        theme::install(theme::from_map(&cfg.theme));
         let (tx, rx) = unbounded_channel();
         let model = cfg.active_model_name();
         let mode = cfg.agent().mode;
@@ -161,6 +156,7 @@ impl App {
             show_sidebar: true,
             sidebar_focus: false,
             mouse_capture: true,
+            ctrl_c_armed: false,
             shared_session: session,
             db_path,
             cancel: Arc::new(tokio::sync::Notify::new()),
@@ -182,14 +178,14 @@ impl App {
         enable_raw_mode()?;
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen)?;
-        write!(stdout, "{MOUSE_ON}")?;
+        write!(stdout, "{MOUSE_ON}{PASTE_ON}")?;
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
 
         let res = self.event_loop(&mut terminal, &mut on_submit);
 
         disable_raw_mode()?;
-        write!(terminal.backend_mut(), "{MOUSE_OFF}")?;
+        write!(terminal.backend_mut(), "{MOUSE_OFF}{PASTE_OFF}")?;
         execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
         terminal.show_cursor()?;
         res
@@ -225,6 +221,7 @@ impl App {
                     }
                     Event::Resize(_, _) => {}
                     Event::Mouse(m) => self.handle_mouse(m),
+                    Event::Paste(s) => self.input.push_str(&s),
                     _ => {}
                 }
                 if before != self.mouse_capture {

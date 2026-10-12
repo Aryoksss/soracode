@@ -1,52 +1,12 @@
 //! Key handling for the interactive terminal UI.
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::{command, sidebar, App, Line2};
 use crate::agent::AgentEvent;
 
 impl App {
-    /// Wheel scrolling over the transcript, three lines per notch.
-    pub(super) fn handle_mouse(&mut self, m: MouseEvent) {
-        match m.kind {
-            MouseEventKind::ScrollUp => {
-                self.auto_scroll = false;
-                self.scroll = self.scroll.saturating_sub(3);
-            }
-            MouseEventKind::ScrollDown => {
-                self.auto_scroll = false;
-                self.scroll = self.scroll.saturating_add(3);
-            }
-            MouseEventKind::Down(MouseButton::Left) => self.click_at(m.column, m.row),
-            _ => {}
-        }
-    }
-
-    fn click_at(&mut self, col: u16, row: u16) {
-        let a = self.sidebar_area;
-        let inside = col >= a.x
-            && col < a.x.saturating_add(a.width)
-            && row >= a.y
-            && row < a.y.saturating_add(a.height);
-        if !inside {
-            self.sidebar_focus = false;
-            return;
-        }
-        let Some(offset) = row.checked_sub(a.y).and_then(|r| r.checked_sub(1)) else {
-            return;
-        };
-        let index = offset as usize;
-        if index >= self.sessions.len() {
-            return;
-        }
-        self.sidebar_index = index;
-        if let Some(id) = self.resume_selected() {
-            self.status = format!("resumed session {id}");
-        }
-        self.sidebar_focus = false;
-    }
-
     /// Keys while the session sidebar holds focus: move the highlight, resume
     /// the highlighted session, or hand focus back to the input.
     fn handle_sidebar_key(&mut self, key: KeyEvent) -> bool {
@@ -85,6 +45,12 @@ impl App {
         if self.sidebar_focus {
             return self.handle_sidebar_key(key);
         }
+        if !matches!(
+            (key.code, key.modifiers),
+            (KeyCode::Char('c'), KeyModifiers::CONTROL)
+        ) {
+            self.ctrl_c_armed = false;
+        }
 
         match (key.code, key.modifiers) {
             (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
@@ -93,10 +59,22 @@ impl App {
                     self.status = "cancelling…".into();
                     return false;
                 }
-                return true;
+                if !self.input.is_empty() {
+                    self.input.clear();
+                    self.palette.open = false;
+                    self.ctrl_c_armed = false;
+                    self.status = "ready".into();
+                } else if self.ctrl_c_armed {
+                    return true;
+                } else {
+                    self.ctrl_c_armed = true;
+                    self.status = "press Ctrl-C again to quit, or Ctrl-Q".into();
+                }
+                return false;
             }
             (KeyCode::Char('q'), KeyModifiers::CONTROL) => return true,
 
+            (KeyCode::Char('y'), KeyModifiers::CONTROL) => self.copy_last(),
             (KeyCode::Char('u'), KeyModifiers::CONTROL) => {
                 self.input.clear();
                 self.history_at = None;
@@ -140,6 +118,9 @@ impl App {
                 self.status = "transcript cleared".into();
             }
 
+            (KeyCode::Enter, KeyModifiers::SHIFT) | (KeyCode::Char('j'), KeyModifiers::CONTROL) => {
+                self.input.push('\n');
+            }
             (KeyCode::Enter, _) => {
                 let text = self.input.trim().to_string();
                 self.input.clear();
@@ -210,6 +191,20 @@ impl App {
 
     /// Open the palette when the input is a bare slash prefix, else close it.
     pub(super) fn refresh_palette(&mut self) {
+        self.palette.files = None;
+        if let Some(token) = super::mention::at_token(&self.input) {
+            let files = super::mention::matching_files(&self.cfg.agent().workspace, token);
+            if !files.is_empty() {
+                self.palette.open = true;
+                self.palette.models = None;
+                self.palette.files = Some(files);
+                let n = self.palette.files.as_ref().map_or(0, Vec::len);
+                if self.palette.selected >= n {
+                    self.palette.selected = 0;
+                }
+                return;
+            }
+        }
         let is_slash = self.input.starts_with('/') && !self.input.contains(' ');
         if is_slash && !command::matching(&self.input).is_empty() {
             self.palette.open = true;

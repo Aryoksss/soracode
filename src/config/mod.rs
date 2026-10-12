@@ -11,6 +11,7 @@
 //! running soracode is the authority. Any target or command given is executed.
 
 mod env;
+mod jsonc;
 mod load;
 mod opencode;
 mod overlay;
@@ -50,6 +51,10 @@ pub struct Config {
     /// MCP servers to launch and expose as tools, keyed by server name.
     #[serde(default)]
     pub mcp: BTreeMap<String, McpServer>,
+    /// TUI colour overrides, keyed by palette slot (`accent`, `text`, …), each
+    /// an `#rrggbb` string. Missing slots keep their built-in default.
+    #[serde(default)]
+    pub theme: BTreeMap<String, String>,
     /// Explicit endpoint override that wins over a selected provider.
     #[serde(skip)]
     pub cli_base_url: Option<String>,
@@ -113,6 +118,7 @@ impl Default for Config {
             models: BTreeMap::new(),
             default_model: None,
             mcp: BTreeMap::new(),
+            theme: BTreeMap::new(),
             cli_base_url: None,
             cli_wire: None,
             cli_api_key: None,

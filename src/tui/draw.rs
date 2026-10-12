@@ -1,4 +1,4 @@
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Wrap};
@@ -67,13 +67,14 @@ impl App {
     }
 
     fn palette_rows(&self) -> u16 {
-        match &self.palette.models {
-            Some(m) => m.len() as u16,
-            None => command::matching(&self.input).len() as u16,
+        match (&self.palette.models, &self.palette.files) {
+            (Some(m), _) => m.len() as u16,
+            (_, Some(f)) => f.len() as u16,
+            _ => command::matching(&self.input).len() as u16,
         }
     }
 
-    fn spinner(&self) -> &'static str {
+    pub(super) fn spinner(&self) -> &'static str {
         if self.busy {
             SPINNER[self.tick % SPINNER.len()]
         } else {
@@ -82,19 +83,24 @@ impl App {
     }
 
     fn draw_palette(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
-        let (title, rows): (&str, Vec<(String, String)>) = match &self.palette.models {
-            Some(models) => (
-                " models ",
-                models.iter().map(|m| (m.clone(), String::new())).collect(),
-            ),
-            None => (
-                " commands ",
-                command::matching(&self.input)
-                    .iter()
-                    .map(|c| (format!("/{}", c.name), c.desc.to_string()))
-                    .collect(),
-            ),
-        };
+        let (title, rows): (&str, Vec<(String, String)>) =
+            match (&self.palette.models, &self.palette.files) {
+                (Some(models), _) => (
+                    " models ",
+                    models.iter().map(|m| (m.clone(), String::new())).collect(),
+                ),
+                (_, Some(files)) => (
+                    " files ",
+                    files.iter().map(|f| (f.clone(), String::new())).collect(),
+                ),
+                _ => (
+                    " commands ",
+                    command::matching(&self.input)
+                        .iter()
+                        .map(|c| (format!("/{}", c.name), c.desc.to_string()))
+                        .collect(),
+                ),
+            };
 
         let lines: Vec<Line> = rows
             .iter()
@@ -102,11 +108,15 @@ impl App {
             .map(|(i, (name, desc))| {
                 let selected = i == self.palette.selected;
                 let bg = if selected {
-                    theme::SELECTION_BG
+                    theme::selection_bg()
                 } else {
-                    theme::PANEL_BG
+                    theme::panel_bg()
                 };
-                let name_fg = if selected { theme::ACCENT } else { theme::TEXT };
+                let name_fg = if selected {
+                    theme::accent()
+                } else {
+                    theme::text()
+                };
                 let marker = if selected { "▌" } else { " " };
                 Line::from(vec![
                     Span::styled(
@@ -118,23 +128,23 @@ impl App {
                     ),
                     Span::styled(
                         format!(" {desc}"),
-                        Style::default().fg(theme::TEXT_MUTED).bg(bg),
+                        Style::default().fg(theme::text_muted()).bg(bg),
                     ),
                 ])
             })
             .collect();
 
         let para = Paragraph::new(Text::from(lines))
-            .style(Style::default().bg(theme::PANEL_BG))
+            .style(Style::default().bg(theme::panel_bg()))
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
-                    .border_style(Style::default().fg(theme::BORDER_ACTIVE))
+                    .border_style(Style::default().fg(theme::border_active()))
                     .title(Span::styled(
                         title,
                         Style::default()
-                            .fg(theme::ACCENT)
+                            .fg(theme::accent())
                             .add_modifier(Modifier::BOLD),
                     )),
             );
@@ -143,25 +153,32 @@ impl App {
 
     fn draw_input(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
         let border = if self.busy {
-            theme::BORDER
+            theme::border()
         } else {
-            theme::BORDER_ACTIVE
+            theme::border_active()
         };
         let body: Text = if self.input.is_empty() {
             Text::from(Line::from(vec![
-                Span::styled("  ❯ ", Style::default().fg(theme::ACCENT)),
+                Span::styled("  ❯ ", Style::default().fg(theme::accent())),
                 Span::styled(
                     "ask about a target, or type / for commands",
-                    Style::default().fg(theme::TEXT_DIM),
+                    Style::default().fg(theme::text_dim()),
                 ),
             ]))
         } else {
-            let mut spans = vec![Span::styled("  ❯ ", Style::default().fg(theme::ACCENT))];
-            spans.push(Span::styled(
-                self.input.clone(),
-                Style::default().fg(theme::TEXT),
-            ));
-            Text::from(Line::from(spans))
+            Text::from(
+                self.input
+                    .lines()
+                    .enumerate()
+                    .map(|(i, line)| {
+                        let prompt = if i == 0 { "  ❯ " } else { "    " };
+                        Line::from(vec![
+                            Span::styled(prompt, Style::default().fg(theme::accent())),
+                            Span::styled(line.to_string(), Style::default().fg(theme::text())),
+                        ])
+                    })
+                    .collect::<Vec<_>>(),
+            )
         };
         let para = Paragraph::new(body)
             .block(
@@ -171,64 +188,11 @@ impl App {
                     .border_style(Style::default().fg(border))
                     .title(Span::styled(
                         " instruction ",
-                        Style::default().fg(theme::INTERACTIVE),
+                        Style::default().fg(theme::interactive()),
                     )),
             )
-            .style(Style::default().bg(theme::PANEL_BG))
+            .style(Style::default().bg(theme::panel_bg()))
             .wrap(Wrap { trim: false });
         f.render_widget(para, area);
-    }
-
-    fn draw_status(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
-        let tokens = self.prompt_tokens + self.completion_tokens;
-        let mut spans = vec![
-            Span::styled(
-                format!(" {} ", self.model),
-                Style::default()
-                    .fg(theme::BG)
-                    .bg(theme::ACCENT)
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::raw(" "),
-            Span::styled(
-                format!("{} ", self.mode.as_str()),
-                Style::default().fg(theme::INTERACTIVE),
-            ),
-            Span::styled("· ", Style::default().fg(theme::TEXT_DIM)),
-        ];
-        if self.busy {
-            spans.extend(self.shimmer(&format!("{} working…  Ctrl-C cancel", self.spinner())));
-        } else {
-            spans.push(Span::styled(
-                "ready — Enter send  Tab sessions  drag to copy  / commands",
-                Style::default().fg(theme::TEXT_MUTED),
-            ));
-        }
-        let left = Line::from(spans);
-        let right = Line::from(Span::styled(
-            format!("{tokens} tok "),
-            Style::default().fg(theme::TEXT_DIM),
-        ))
-        .alignment(Alignment::Right);
-        f.render_widget(Paragraph::new(Text::from(vec![left])), area);
-        f.render_widget(Paragraph::new(Text::from(vec![right])), area);
-    }
-
-    fn shimmer(&self, text: &str) -> Vec<Span<'static>> {
-        let chars: Vec<char> = text.chars().collect();
-        let crest = self.tick % (chars.len().max(1) + 8);
-        chars
-            .into_iter()
-            .enumerate()
-            .map(|(i, c)| {
-                let near = i.abs_diff(crest) <= 2;
-                let color = if near {
-                    theme::INTERACTIVE
-                } else {
-                    theme::TEXT_MUTED
-                };
-                Span::styled(c.to_string(), Style::default().fg(color))
-            })
-            .collect()
     }
 }

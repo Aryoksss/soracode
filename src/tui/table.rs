@@ -25,7 +25,7 @@ pub(super) fn push_table(lines: &mut Vec<Line>, block: &[&str], base: Color) {
     lines.push(table_row(&header, base, true));
     lines.push(Line::from(Span::styled(
         "  ".to_string() + &"─".repeat(width * 14),
-        Style::default().fg(theme::BORDER),
+        Style::default().fg(theme::border()),
     )));
     for row in &block[2..] {
         lines.push(table_row(&cells(row), base, false));
@@ -52,7 +52,7 @@ fn table_row(cells: &[String], base: Color, bold: bool) -> Line<'static> {
     let mut spans = vec![Span::styled("  ", Style::default().fg(base))];
     for (i, cell) in cells.iter().enumerate() {
         if i > 0 {
-            spans.push(Span::styled(" │ ", Style::default().fg(theme::BORDER)));
+            spans.push(Span::styled(" │ ", Style::default().fg(theme::border())));
         }
         let mut style = Style::default().fg(base);
         if bold {

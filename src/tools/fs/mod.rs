@@ -25,7 +25,7 @@ fn resolve(ctx: &ToolContext, p: &str) -> PathBuf {
 }
 
 /// Directories that are noise for a source search and are skipped by walkers.
-fn is_noise_dir(p: &Path) -> bool {
+pub(crate) fn is_noise_dir(p: &Path) -> bool {
     let Some(name) = p.file_name().and_then(|n| n.to_str()) else {
         return false;
     };

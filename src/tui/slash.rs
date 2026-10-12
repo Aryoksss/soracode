@@ -41,8 +41,10 @@ impl App {
                 self.transcript.push(Line2::Info("keys".into()));
                 for k in [
                     "Enter            send",
+                    "Shift+Enter, ^J  new line",
                     "↑/↓              history",
                     "Ctrl-U           clear input",
+                    "Ctrl-Y           copy last answer to clipboard",
                     "PgUp/PgDn        scroll",
                     "Home/End         top / newest",
                     "Tab, Ctrl-B      sidebar / hide",
@@ -51,7 +53,8 @@ impl App {
                     "Ctrl-T           toggle thinking",
                     "Ctrl-L           clear transcript",
                     "F2               toggle wheel capture (drag selects either way)",
-                    "Ctrl-C           cancel turn / quit",
+                    "Ctrl-C           cancel turn / clear input",
+                    "Ctrl-C twice     quit",
                     "Ctrl-Q           quit",
                 ] {
                     self.transcript.push(Line2::Info(format!("  {k}")));
@@ -141,6 +144,7 @@ impl App {
                     open: true,
                     selected: 0,
                     models: Some(names),
+                    files: None,
                 };
                 self.input.clear();
             }

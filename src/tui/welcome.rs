@@ -34,36 +34,39 @@ impl App {
                 lines.push(Line::from(Span::styled(
                     row,
                     Style::default()
-                        .fg(theme::ACCENT)
+                        .fg(theme::accent())
                         .add_modifier(Modifier::BOLD),
                 )));
             }
         }
         lines.push(Line::from(Span::styled(
             "operator-controlled security agent",
-            Style::default().fg(theme::TEXT_MUTED),
+            Style::default().fg(theme::text_muted()),
         )));
         lines.push(Line::default());
         lines.push(Line::from(vec![
-            Span::styled("  model      ", Style::default().fg(theme::TEXT_DIM)),
-            Span::styled(self.model.clone(), Style::default().fg(theme::INTERACTIVE)),
+            Span::styled("  model      ", Style::default().fg(theme::text_dim())),
+            Span::styled(
+                self.model.clone(),
+                Style::default().fg(theme::interactive()),
+            ),
         ]));
         lines.push(Line::from(vec![
-            Span::styled("  mode       ", Style::default().fg(theme::TEXT_DIM)),
-            Span::styled(mode.to_string(), Style::default().fg(theme::TEXT)),
+            Span::styled("  mode       ", Style::default().fg(theme::text_dim())),
+            Span::styled(mode.to_string(), Style::default().fg(theme::text())),
         ]));
         lines.push(Line::from(vec![
-            Span::styled("  workspace  ", Style::default().fg(theme::TEXT_DIM)),
-            Span::styled(workspace, Style::default().fg(theme::INFO)),
+            Span::styled("  workspace  ", Style::default().fg(theme::text_dim())),
+            Span::styled(workspace, Style::default().fg(theme::info())),
         ]));
         lines.push(Line::default());
         lines.push(Line::from(Span::styled(
             "  describe a target and the agent plans, runs tools, and records",
-            Style::default().fg(theme::TEXT_MUTED),
+            Style::default().fg(theme::text_muted()),
         )));
         lines.push(Line::from(Span::styled(
             "  what it finds.  type / for commands, Tab for sessions.",
-            Style::default().fg(theme::TEXT_MUTED),
+            Style::default().fg(theme::text_muted()),
         )));
 
         let para = Paragraph::new(Text::from(lines))
@@ -72,7 +75,7 @@ impl App {
                 Block::default()
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
-                    .border_style(Style::default().fg(theme::BORDER))
+                    .border_style(Style::default().fg(theme::border()))
                     .title(self.transcript_title()),
             );
         f.render_widget(para, area);

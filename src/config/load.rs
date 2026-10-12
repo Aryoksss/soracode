@@ -168,6 +168,7 @@ impl Config {
             self.default_model = oc.default_model;
         }
         self.mcp.extend(oc.mcp);
+        self.theme.extend(oc.theme);
         Ok(())
     }
 

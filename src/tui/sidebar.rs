@@ -26,7 +26,7 @@ pub(super) fn draw(app: &mut App, f: &mut ratatui::Frame<'_>, area: Rect) {
     let lines: Vec<Line> = if app.sessions.is_empty() {
         vec![Line::from(Span::styled(
             "  no recent sessions ",
-            Style::default().fg(theme::TEXT_DIM),
+            Style::default().fg(theme::text_dim()),
         ))]
     } else {
         app.sessions
@@ -36,19 +36,19 @@ pub(super) fn draw(app: &mut App, f: &mut ratatui::Frame<'_>, area: Rect) {
                 let selected = i == app.sidebar_index;
                 let (bg, marker_fg, id_fg, sum_fg, time_fg) = if selected {
                     (
-                        theme::SELECTION_BG,
-                        theme::ACCENT,
-                        theme::TEXT,
-                        theme::TEXT_MUTED,
-                        theme::TEXT_DIM,
+                        theme::selection_bg(),
+                        theme::accent(),
+                        theme::text(),
+                        theme::text_muted(),
+                        theme::text_dim(),
                     )
                 } else {
                     (
-                        theme::PANEL_BG,
-                        theme::PANEL_BG,
-                        theme::TEXT,
-                        theme::TEXT_DIM,
-                        theme::TEXT_DIM,
+                        theme::panel_bg(),
+                        theme::panel_bg(),
+                        theme::text(),
+                        theme::text_dim(),
+                        theme::text_dim(),
                     )
                 };
                 let marker = if selected { "▌" } else { " " };
@@ -76,17 +76,17 @@ pub(super) fn draw(app: &mut App, f: &mut ratatui::Frame<'_>, area: Rect) {
 
     let (border, title) = if app.sidebar_focus {
         (
-            theme::INTERACTIVE,
+            theme::interactive(),
             " sessions  ↑↓  ⏎ resume  d delete ".to_string(),
         )
     } else {
         (
-            theme::BORDER,
+            theme::border(),
             format!(" sessions · {} ", app.sessions.len()),
         )
     };
     let para = Paragraph::new(Text::from(lines))
-        .style(Style::default().bg(theme::PANEL_BG))
+        .style(Style::default().bg(theme::panel_bg()))
         .block(
             Block::default()
                 .borders(Borders::ALL)
@@ -95,7 +95,7 @@ pub(super) fn draw(app: &mut App, f: &mut ratatui::Frame<'_>, area: Rect) {
                 .title(Span::styled(
                     title,
                     Style::default()
-                        .fg(theme::ACCENT)
+                        .fg(theme::accent())
                         .add_modifier(Modifier::BOLD),
                 )),
         );

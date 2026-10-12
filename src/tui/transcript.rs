@@ -32,7 +32,7 @@ impl App {
                 Block::default()
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
-                    .border_style(Style::default().fg(theme::BORDER))
+                    .border_style(Style::default().fg(theme::border()))
                     .title(self.transcript_title()),
             )
             .wrap(Wrap { trim: false })
@@ -46,29 +46,29 @@ impl App {
         for l in &self.transcript {
             match l {
                 Line2::User(t) => lines.push(Line::from(vec![
-                    Span::styled("▌ ", Style::default().fg(theme::ROLE_USER)),
+                    Span::styled("▌ ", Style::default().fg(theme::role_user())),
                     Span::styled(
                         "you ",
                         Style::default()
-                            .fg(theme::ROLE_USER)
+                            .fg(theme::role_user())
                             .add_modifier(Modifier::BOLD),
                     ),
-                    Span::styled(t.clone(), Style::default().fg(theme::TEXT)),
+                    Span::styled(t.clone(), Style::default().fg(theme::text())),
                 ])),
                 Line2::Assistant(t) => {
                     lines.push(Line::from(Span::styled(
                         "⏺ soracode",
                         Style::default()
-                            .fg(theme::ROLE_ASSISTANT)
+                            .fg(theme::role_assistant())
                             .add_modifier(Modifier::BOLD),
                     )));
-                    push_markdown(lines, t, theme::TEXT);
+                    push_markdown(lines, t, theme::text());
                 }
-                Line2::Tool(t) => push_markdown(lines, t, theme::ROLE_TOOL),
+                Line2::Tool(t) => push_markdown(lines, t, theme::role_tool()),
                 Line2::Heading(t) => lines.push(Line::from(Span::styled(
                     format!("▍ {t}"),
                     Style::default()
-                        .fg(theme::ACCENT)
+                        .fg(theme::accent())
                         .add_modifier(Modifier::BOLD),
                 ))),
                 Line2::Severity(badge, text) => lines.push(Line::from(vec![
@@ -79,13 +79,13 @@ impl App {
                             .fg(theme::severity(badge))
                             .add_modifier(Modifier::BOLD),
                     ),
-                    Span::styled(text.clone(), Style::default().fg(theme::TEXT_MUTED)),
+                    Span::styled(text.clone(), Style::default().fg(theme::text_muted())),
                 ])),
                 Line2::Info(t) => {
                     for sub in t.lines() {
                         lines.push(Line::from(Span::styled(
                             format!("  {sub}"),
-                            Style::default().fg(theme::TEXT_MUTED),
+                            Style::default().fg(theme::text_muted()),
                         )));
                     }
                 }
@@ -93,7 +93,7 @@ impl App {
                     for sub in t.lines() {
                         lines.push(Line::from(Span::styled(
                             format!("  {sub}"),
-                            Style::default().fg(theme::ERROR),
+                            Style::default().fg(theme::error()),
                         )));
                     }
                 }
@@ -103,27 +103,63 @@ impl App {
         if self.show_thinking && !self.thinking.is_empty() {
             lines.push(Line::from(Span::styled(
                 "  ┌ thinking".to_string(),
-                Style::default().fg(theme::WARNING),
+                Style::default().fg(theme::warning()),
             )));
             for sub in self.thinking.lines() {
                 lines.push(Line::from(Span::styled(
                     format!("  │ {sub}"),
-                    Style::default().fg(theme::TEXT_MUTED),
+                    Style::default().fg(theme::text_muted()),
                 )));
             }
             lines.push(Line::from(Span::styled(
                 "  └".to_string(),
-                Style::default().fg(theme::WARNING),
+                Style::default().fg(theme::warning()),
             )));
         }
 
         if !self.current_stream.is_empty() {
-            push_markdown(lines, &self.current_stream, theme::TEXT);
+            push_markdown(lines, &self.current_stream, theme::text());
             if let Some(last) = lines.last_mut() {
                 last.spans
-                    .push(Span::styled("▏", Style::default().fg(theme::ACCENT)));
+                    .push(Span::styled("▏", Style::default().fg(theme::accent())));
             }
         }
+    }
+
+    /// Text for the copy binding: the latest assistant turn, or the whole
+    /// transcript when nothing has been answered yet.
+    pub(super) fn copy_text(&self) -> String {
+        for l in self.transcript.iter().rev() {
+            if let Line2::Assistant(t) = l {
+                return t.clone();
+            }
+        }
+        self.transcript
+            .iter()
+            .filter_map(|l| match l {
+                Line2::User(t) => Some(format!("you: {t}")),
+                Line2::Assistant(t) => Some(t.clone()),
+                Line2::Error(t) => Some(format!("error: {t}")),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n")
+    }
+
+    /// Copy to the terminal's clipboard with OSC 52, which works over SSH and
+    /// needs no native clipboard library. Payload is base64 per the spec.
+    pub(super) fn copy_last(&mut self) {
+        let text = self.copy_text();
+        if text.is_empty() {
+            self.status = "nothing to copy".into();
+            return;
+        }
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
+        use std::io::Write as _;
+        let mut out = std::io::stdout();
+        let _ = write!(out, "\x1b]52;c;{}\x07", STANDARD.encode(text.as_bytes()));
+        let _ = out.flush();
+        self.status = "copied to clipboard".into();
     }
 
     /// Transcript top border: wordmark, session id, and active model.
@@ -132,19 +168,19 @@ impl App {
             Span::styled(
                 " soracode ",
                 Style::default()
-                    .fg(theme::BG)
-                    .bg(theme::ACCENT)
+                    .fg(theme::bg())
+                    .bg(theme::accent())
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled("  ", Style::default()),
             Span::styled(
                 format!("{} ", self.session_id),
-                Style::default().fg(theme::TEXT_DIM),
+                Style::default().fg(theme::text_dim()),
             ),
-            Span::styled("· ", Style::default().fg(theme::TEXT_DIM)),
+            Span::styled("· ", Style::default().fg(theme::text_dim())),
             Span::styled(
                 format!("{} ", self.model),
-                Style::default().fg(theme::TEXT_MUTED),
+                Style::default().fg(theme::text_muted()),
             ),
         ])
     }
@@ -195,8 +231,8 @@ impl App {
             .end_symbol(None)
             .track_symbol(Some("│"))
             .thumb_symbol("▐")
-            .style(Style::default().fg(theme::TEXT_DIM))
-            .thumb_style(Style::default().fg(theme::ACCENT));
+            .style(Style::default().fg(theme::text_dim()))
+            .thumb_style(Style::default().fg(theme::accent()));
         let mut state = ScrollbarState::new(content)
             .position(self.scroll as usize)
             .viewport_content_length(view);

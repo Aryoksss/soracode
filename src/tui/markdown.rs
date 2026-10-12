@@ -22,14 +22,14 @@ pub(super) fn render_line(raw: &str, base: Color) -> Line<'static> {
     if is_rule(raw) {
         return Line::from(Span::styled(
             "─".repeat(40),
-            Style::default().fg(theme::BORDER),
+            Style::default().fg(theme::border()),
         ));
     }
 
     if let Some(rest) = raw.trim_start().strip_prefix('>') {
         let mut spans = vec![Span::styled(
             "  ▏ ".to_string(),
-            Style::default().fg(theme::ACCENT),
+            Style::default().fg(theme::accent()),
         )];
         spans.extend(inline(rest.trim_start(), base));
         return Line::from(spans);
@@ -43,7 +43,7 @@ pub(super) fn render_line(raw: &str, base: Color) -> Line<'static> {
             Span::styled(
                 rest,
                 Style::default()
-                    .fg(theme::ACCENT)
+                    .fg(theme::accent())
                     .add_modifier(Modifier::BOLD),
             ),
         ]);
@@ -108,7 +108,7 @@ fn inline(text: &str, base: Color) -> Vec<Span<'static>> {
         if i % 2 == 1 {
             out.push(Span::styled(
                 seg.to_string(),
-                Style::default().fg(theme::SUCCESS),
+                Style::default().fg(theme::success()),
             ));
             continue;
         }
@@ -124,12 +124,12 @@ fn emphasis(text: &str, base: Color, out: &mut Vec<Span<'static>>) {
             out.push(Span::styled(
                 label.to_string(),
                 Style::default()
-                    .fg(theme::INTERACTIVE)
+                    .fg(theme::interactive())
                     .add_modifier(Modifier::UNDERLINED),
             ));
             out.push(Span::styled(
                 format!(" ({url})"),
-                Style::default().fg(theme::TEXT_MUTED),
+                Style::default().fg(theme::text_muted()),
             ));
             rest = after;
             continue;

@@ -3,18 +3,39 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tokio::sync::mpsc::UnboundedSender;
 
-use super::{command, App, Palette};
+use super::{command, App};
 use crate::agent::AgentEvent;
 
+/// State of the slash-command palette.
+pub(super) struct Palette {
+    pub(super) open: bool,
+    pub(super) selected: usize,
+    /// `Some` while picking a model: the names offered.
+    pub(super) models: Option<Vec<String>>,
+    /// `Some` while picking a file for an `@` mention: the paths offered.
+    pub(super) files: Option<Vec<String>>,
+}
+
+impl Palette {
+    pub(super) fn closed() -> Self {
+        Self {
+            open: false,
+            selected: 0,
+            models: None,
+            files: None,
+        }
+    }
+}
 impl App {
     /// Handle keys while the palette is open.
     pub(super) fn handle_palette_key<F>(&mut self, key: KeyEvent, on_submit: &mut F) -> bool
     where
         F: FnMut(String, UnboundedSender<AgentEvent>) + Send + 'static,
     {
-        let items = match &self.palette.models {
-            Some(models) => models.len(),
-            None => command::matching(&self.input).len(),
+        let items = match (&self.palette.models, &self.palette.files) {
+            (Some(models), _) => models.len(),
+            (_, Some(files)) => files.len(),
+            _ => command::matching(&self.input).len(),
         };
 
         match (key.code, key.modifiers) {
@@ -54,6 +75,20 @@ impl App {
     where
         F: FnMut(String, UnboundedSender<AgentEvent>) + Send + 'static,
     {
+        if let Some(files) = self.palette.files.take() {
+            if let Some(path) = files.get(self.palette.selected) {
+                if let Some(start) = self.input.rfind('@') {
+                    self.input.truncate(start);
+                    self.input.push('@');
+                    self.input.push_str(path);
+                    self.input.push(' ');
+                }
+            }
+            self.palette = Palette::closed();
+            self.refresh_palette();
+            return;
+        }
+
         if let Some(models) = self.palette.models.take() {
             if let Some(name) = models.get(self.palette.selected) {
                 self.switch_model(name);
