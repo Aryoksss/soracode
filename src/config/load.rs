@@ -167,6 +167,7 @@ impl Config {
         if oc.default_model.is_some() {
             self.default_model = oc.default_model;
         }
+        self.mcp.extend(oc.mcp);
         Ok(())
     }
 

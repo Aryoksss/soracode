@@ -49,43 +49,45 @@ pub struct ToolContext {
 
 /// Holds the tools available to one agent and dispatches calls by name.
 pub struct Registry {
-    tools: Vec<Box<dyn Tool>>,
+    tools: Vec<Arc<dyn Tool>>,
 }
 
 impl Registry {
     /// Build the standard tool set for the given context.
     #[must_use]
     pub fn standard(ctx: &ToolContext) -> Self {
-        let mut tools: Vec<Box<dyn Tool>> = vec![
-            Box::new(shell::ShellTool::new(ctx.clone())),
-            Box::new(http::HttpTool::new(ctx.clone())),
-            Box::new(fs::ReadTool::new(ctx.clone())),
-            Box::new(fs::WriteTool::new(ctx.clone())),
-            Box::new(fs::EditTool::new(ctx.clone())),
-            Box::new(fs::ListTool::new(ctx.clone())),
-            Box::new(fs::GlobTool::new(ctx.clone())),
-            Box::new(fs::GrepTool::new(ctx.clone())),
-            Box::new(notes::NoteTool::new(ctx.clone())),
-            Box::new(notes::RecallTool::new(ctx.clone())),
-            Box::new(host::ToolsTool::new(ctx.clone())),
-            Box::new(skill::SkillTool::new(ctx.clone())),
-            Box::new(pentest::NmapParseTool::new(ctx.clone())),
-            Box::new(pentest::NucleiParseTool::new(ctx.clone())),
-            Box::new(pentest::CmeParseTool::new(ctx.clone())),
-            Box::new(pentest::GobusterParseTool::new(ctx.clone())),
-            Box::new(pentest::SqlmapParseTool::new(ctx.clone())),
-            Box::new(pentest::BloodhoundParseTool::new(ctx.clone())),
-            Box::new(pentest::XssDetectTool::new(ctx.clone())),
-            Box::new(pentest::JwtAnalyzeTool::new(ctx.clone())),
-            Box::new(pentest::StateUpdateTool::new(ctx.clone())),
-            Box::new(pentest::StateQueryTool::new(ctx.clone())),
-            Box::new(pentest::AttackPathTool::new(ctx.clone())),
-            Box::new(pentest::ReportTool::new(ctx.clone())),
+        let mut tools: Vec<Arc<dyn Tool>> = vec![
+            Arc::new(shell::ShellTool::new(ctx.clone())),
+            Arc::new(http::HttpTool::new(ctx.clone())),
+            Arc::new(fs::ReadTool::new(ctx.clone())),
+            Arc::new(fs::WriteTool::new(ctx.clone())),
+            Arc::new(fs::EditTool::new(ctx.clone())),
+            Arc::new(fs::ListTool::new(ctx.clone())),
+            Arc::new(fs::GlobTool::new(ctx.clone())),
+            Arc::new(fs::GrepTool::new(ctx.clone())),
+            Arc::new(notes::NoteTool::new(ctx.clone())),
+            Arc::new(notes::RecallTool::new(ctx.clone())),
+            Arc::new(host::ToolsTool::new(ctx.clone())),
+            Arc::new(skill::SkillTool::new(ctx.clone())),
+            Arc::new(pentest::NmapParseTool::new(ctx.clone())),
+            Arc::new(pentest::NucleiParseTool::new(ctx.clone())),
+            Arc::new(pentest::CmeParseTool::new(ctx.clone())),
+            Arc::new(pentest::GobusterParseTool::new(ctx.clone())),
+            Arc::new(pentest::SqlmapParseTool::new(ctx.clone())),
+            Arc::new(pentest::BloodhoundParseTool::new(ctx.clone())),
+            Arc::new(pentest::XssDetectTool::new(ctx.clone())),
+            Arc::new(pentest::JwtAnalyzeTool::new(ctx.clone())),
+            Arc::new(pentest::StateUpdateTool::new(ctx.clone())),
+            Arc::new(pentest::StateQueryTool::new(ctx.clone())),
+            Arc::new(pentest::AttackPathTool::new(ctx.clone())),
+            Arc::new(pentest::ReportTool::new(ctx.clone())),
         ];
 
         if ctx.config.subagents_enabled && ctx.depth < ctx.config.subagent_max_depth {
-            tools.push(Box::new(subagent::SubagentTool::new(ctx.clone())));
+            tools.push(Arc::new(subagent::SubagentTool::new(ctx.clone())));
         }
+
+        tools.extend(crate::mcp::tools());
 
         Self { tools }
     }

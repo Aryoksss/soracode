@@ -62,6 +62,20 @@ struct OcFile {
     model: Option<String>,
     #[serde(default)]
     provider: BTreeMap<String, OcProvider>,
+    #[serde(default)]
+    mcp: BTreeMap<String, OcMcp>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct OcMcp {
+    #[serde(default)]
+    command: String,
+    #[serde(default)]
+    args: Vec<String>,
+    #[serde(default)]
+    env: BTreeMap<String, String>,
+    #[serde(default)]
+    disabled: bool,
 }
 
 /// What a parsed OpenCode file contributes to the configuration.
@@ -73,6 +87,8 @@ pub(super) struct OpenCode {
     pub(super) models: BTreeMap<String, Model>,
     /// The `model` key from the file, if any.
     pub(super) default_model: Option<String>,
+    /// MCP servers keyed by name.
+    pub(super) mcp: BTreeMap<String, super::McpServer>,
 }
 
 /// Parse an OpenCode-shaped JSON or JSONC document.
@@ -127,6 +143,21 @@ pub(super) fn parse(text: &str) -> Result<OpenCode> {
         }
     }
     out.default_model = file.model.map(|m| env_expand(&m));
+    for (name, m) in file.mcp {
+        out.mcp.insert(
+            name,
+            super::McpServer {
+                command: env_expand(&m.command),
+                args: m.args.iter().map(|a| env_expand(a)).collect(),
+                env: m
+                    .env
+                    .into_iter()
+                    .map(|(k, v)| (k, env_expand(&v)))
+                    .collect(),
+                disabled: m.disabled,
+            },
+        );
+    }
     Ok(out)
 }
 

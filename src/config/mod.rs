@@ -47,6 +47,9 @@ pub struct Config {
     /// Model used when neither `--model` nor `SORACODE_MODEL` is given.
     #[serde(default)]
     pub default_model: Option<String>,
+    /// MCP servers to launch and expose as tools, keyed by server name.
+    #[serde(default)]
+    pub mcp: BTreeMap<String, McpServer>,
     /// Explicit endpoint override that wins over a selected provider.
     #[serde(skip)]
     pub cli_base_url: Option<String>,
@@ -77,6 +80,22 @@ pub struct ModelsFile {
     pub default_model: Option<String>,
 }
 
+/// A stdio MCP server: a command to launch and speak JSON-RPC to over pipes.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct McpServer {
+    /// Executable to run.
+    pub command: String,
+    /// Arguments passed to it.
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// Extra environment variables for the child, on top of the inherited set.
+    #[serde(default)]
+    pub env: BTreeMap<String, String>,
+    /// Disable a server without deleting its block.
+    #[serde(default)]
+    pub disabled: bool,
+}
+
 pub(super) fn default_db() -> PathBuf {
     let mut p = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
     p.push("soracode");
@@ -93,6 +112,7 @@ impl Default for Config {
             providers: BTreeMap::new(),
             models: BTreeMap::new(),
             default_model: None,
+            mcp: BTreeMap::new(),
             cli_base_url: None,
             cli_wire: None,
             cli_api_key: None,
@@ -119,6 +139,7 @@ impl Config {
 
         self.providers.extend(other.providers);
         self.models.extend(other.models);
+        self.mcp.extend(other.mcp);
 
         if other.default_model.is_some() {
             self.default_model = other.default_model;

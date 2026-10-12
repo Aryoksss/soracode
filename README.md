@@ -215,6 +215,33 @@ elided — never the system prompts, the opening instruction, the most recent
 turn, or an assistant tool call separated from its result. The elided span is
 replaced by a one-line marker so the model knows context was trimmed.
 
+## MCP servers
+
+Any [Model Context Protocol](https://modelcontextprotocol.io) server that
+speaks JSON-RPC over stdio can be launched and its tools exposed to the agent.
+Each remote tool appears as `mcp_<server>_<tool>`, so a Burp Suite MCP server
+named `burp` turns its `scan_target` into `mcp_burp_scan_target`:
+
+```jsonc
+"mcp": {
+  "burp": {
+    "command": "java",
+    "args": ["-jar", "/opt/burp-mcp.jar", "--stdio"],
+    "env": { "BURP_API_KEY": "{env:BURP_API_KEY}" }
+  },
+  "filesystem": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/srv/evidence"]
+  }
+}
+```
+
+Servers are started once at session start. A server that fails to launch or to
+answer the `initialize` handshake is reported and skipped without stopping the
+session, and `"disabled": true` turns one off without deleting its block. Set
+`"protocolVersion"`-compatible servers only; only the stdio transport is
+supported for now.
+
 ## Tools
 
 | Tool | Purpose |

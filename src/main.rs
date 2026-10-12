@@ -11,6 +11,7 @@ mod config;
 mod engagement;
 mod error;
 mod llm;
+mod mcp;
 mod models;
 mod prompt;
 mod runtime;
@@ -155,6 +156,8 @@ async fn run() -> Result<()> {
 
     let session = Arc::new(Session::open(&cfg.db_path, resume_id.as_deref())?);
     let cfg = Arc::new(cfg);
+
+    mcp::init(&cfg).await;
 
     let client = Client::new(ClientConfig {
         base_url: resolved.base_url.clone(),
