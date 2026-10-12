@@ -203,6 +203,11 @@ correctly; it is not treated as an empty reply.
 | `nmap_parse` | parse nmap XML into hosts and services in the engagement state |
 | `nuclei_parse` | parse nuclei JSONL into findings, one per template match |
 | `cme_parse` | parse NetExec / CrackMapExec output into hosts, creds and admin access |
+| `gobuster_parse` | parse gobuster `dir`/`vhost`/`dns` output into hosts and found paths |
+| `sqlmap_parse` | parse sqlmap output into one finding per injectable parameter |
+| `bloodhound_parse` | parse BloodHound / SharpHound JSON into hosts, users and graph edges |
+| `xss_detect` | decide whether a response reflects a probe unencoded, in script/tag/attribute context |
+| `jwt_analyze` | decode a JWT, flag `alg: none` and no-`exp`, and crack a weak HMAC secret |
 | `state_update` | record a vuln, credential, foothold or graph edge |
 | `state_query` | read the shared engagement state back out |
 | `attack_path_suggest` | find shortest attack paths through the recorded graph |

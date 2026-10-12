@@ -72,6 +72,11 @@ impl Registry {
             Box::new(pentest::NmapParseTool::new(ctx.clone())),
             Box::new(pentest::NucleiParseTool::new(ctx.clone())),
             Box::new(pentest::CmeParseTool::new(ctx.clone())),
+            Box::new(pentest::GobusterParseTool::new(ctx.clone())),
+            Box::new(pentest::SqlmapParseTool::new(ctx.clone())),
+            Box::new(pentest::BloodhoundParseTool::new(ctx.clone())),
+            Box::new(pentest::XssDetectTool::new(ctx.clone())),
+            Box::new(pentest::JwtAnalyzeTool::new(ctx.clone())),
             Box::new(pentest::StateUpdateTool::new(ctx.clone())),
             Box::new(pentest::StateQueryTool::new(ctx.clone())),
             Box::new(pentest::AttackPathTool::new(ctx.clone())),
@@ -138,4 +143,22 @@ pub fn arg_str_opt(args: &serde_json::Value, key: &str) -> Option<String> {
 #[must_use]
 pub fn arg_u64_opt(args: &serde_json::Value, key: &str) -> Option<u64> {
     args.get(key).and_then(serde_json::Value::as_u64)
+}
+
+/// Reduce a URL or `host:port` string to its bare host.
+///
+/// Parsers record the host the way the other tools address it, so a finding
+/// from a URL-shaped argument lands on the same host row a scan of that host
+/// already created instead of on `http://host/`.
+#[must_use]
+pub fn host_of(input: &str) -> String {
+    let rest = input
+        .trim()
+        .strip_prefix("https://")
+        .or_else(|| input.trim().strip_prefix("http://"))
+        .unwrap_or(input.trim());
+    rest.split(['/', '?', ':'])
+        .next()
+        .unwrap_or(rest)
+        .to_string()
 }
