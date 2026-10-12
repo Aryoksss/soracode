@@ -4,17 +4,35 @@ use ratatui::text::{Line, Span};
 use super::table;
 use super::theme;
 
-pub(super) fn push_markdown(lines: &mut Vec<Line>, text: &str, base: Color) {
+/// Render `text` as markdown, prefixing every emitted line with `indent`.
+pub(super) fn push_markdown_indented(lines: &mut Vec<Line>, text: &str, base: Color, indent: &str) {
     let rows: Vec<&str> = text.lines().collect();
     let mut i = 0;
     while i < rows.len() {
         if let Some(end) = table::table_end(&rows, i) {
+            let start = lines.len();
             table::push_table(lines, &rows[i..end], base);
+            if !indent.is_empty() {
+                prepend_indent(&mut lines[start..], indent);
+            }
             i = end;
             continue;
         }
-        lines.push(render_line(rows[i], base));
+        let mut line = render_line(rows[i], base);
+        if !indent.is_empty() {
+            line.spans
+                .insert(0, Span::styled(indent.to_string(), Style::default()));
+        }
+        lines.push(line);
         i += 1;
+    }
+}
+
+/// Prefix each line with an unstyled indent span.
+pub(super) fn prepend_indent(lines: &mut [Line], indent: &str) {
+    for line in lines {
+        line.spans
+            .insert(0, Span::styled(indent.to_string(), Style::default()));
     }
 }
 

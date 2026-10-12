@@ -53,6 +53,11 @@ impl App {
         }
 
         match (key.code, key.modifiers) {
+            (KeyCode::Esc, _) if self.busy && !self.palette.open => {
+                self.cancel.notify_one();
+                self.status = "cancelling…".into();
+                return false;
+            }
             (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
                 if self.busy {
                     self.cancel.notify_one();
@@ -132,6 +137,11 @@ impl App {
                 self.input.clear();
                 self.history_at = None;
                 if text.is_empty() {
+                    return false;
+                }
+                if self.busy {
+                    self.input = text;
+                    self.status = "still working — esc or Ctrl-C to interrupt".into();
                     return false;
                 }
                 if let Some(rest) = text.strip_prefix('/') {

@@ -1,11 +1,12 @@
 use ratatui::layout::Rect;
-use ratatui::style::{Modifier, Style};
-use ratatui::text::{Line, Span, Text};
+use ratatui::style::Style;
+use ratatui::text::{Line, Text};
 use ratatui::widgets::{Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap};
 
-use super::markdown::push_markdown;
 use super::{theme, App};
 use crate::session::Session;
+
+mod render;
 
 /// Rebuild the transcript pane from a session's entries, for resume.
 pub(crate) fn rebuild(session: &Session) -> Vec<Line2> {
@@ -44,6 +45,8 @@ pub(crate) enum Line2 {
     Severity(String, String),
     /// One changed line in a file diff, rendered by its leading `+`/`-`.
     Diff(String),
+    /// A tool result line, rendered under the call with a `⎿` gutter.
+    Result(String),
     Info(String),
     Error(String),
 }
@@ -51,7 +54,13 @@ pub(crate) enum Line2 {
 impl App {
     pub(super) fn draw_transcript(&mut self, f: &mut ratatui::Frame<'_>, area: Rect) {
         let mut lines: Vec<Line> = Vec::new();
-        self.collect_lines(&mut lines);
+        render::collect_lines(
+            &mut lines,
+            &self.transcript,
+            &self.thinking,
+            self.show_thinking,
+            &self.current_stream,
+        );
 
         self.apply_scroll(area);
         let para = Paragraph::new(Text::from(lines))
@@ -59,101 +68,6 @@ impl App {
             .scroll((self.scroll, 0));
         f.render_widget(para, area);
         self.draw_scrollbar(f, area);
-    }
-
-    /// Build the transcript's rendered lines from session state.
-    fn collect_lines(&self, lines: &mut Vec<Line>) {
-        for l in &self.transcript {
-            match l {
-                Line2::User(t) => lines.push(Line::from(vec![
-                    Span::styled("> ", Style::default().fg(theme::role_user())),
-                    Span::styled(
-                        t.clone(),
-                        Style::default()
-                            .fg(theme::text())
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                ])),
-                Line2::Assistant(t) => {
-                    lines.push(Line::from(Span::styled(
-                        "⏺",
-                        Style::default().fg(theme::role_assistant()),
-                    )));
-                    push_markdown(lines, t, theme::text());
-                }
-                Line2::Tool(t) => push_markdown(lines, t, theme::role_tool()),
-                Line2::Heading(t) => lines.push(Line::from(Span::styled(
-                    format!("▍ {t}"),
-                    Style::default()
-                        .fg(theme::accent())
-                        .add_modifier(Modifier::BOLD),
-                ))),
-                Line2::Severity(badge, text) => lines.push(Line::from(vec![
-                    Span::styled("  ● ", Style::default().fg(theme::severity(badge))),
-                    Span::styled(
-                        format!("{badge:<8} "),
-                        Style::default()
-                            .fg(theme::severity(badge))
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(text.clone(), Style::default().fg(theme::text_muted())),
-                ])),
-                Line2::Diff(t) => {
-                    let color = if t.starts_with('+') {
-                        theme::success()
-                    } else if t.starts_with('-') {
-                        theme::error()
-                    } else {
-                        theme::text_dim()
-                    };
-                    lines.push(Line::from(Span::styled(
-                        format!("  {t}"),
-                        Style::default().fg(color),
-                    )));
-                }
-                Line2::Info(t) => {
-                    for sub in t.lines() {
-                        lines.push(Line::from(Span::styled(
-                            format!("  {sub}"),
-                            Style::default().fg(theme::text_muted()),
-                        )));
-                    }
-                }
-                Line2::Error(t) => {
-                    for sub in t.lines() {
-                        lines.push(Line::from(Span::styled(
-                            format!("  {sub}"),
-                            Style::default().fg(theme::error()),
-                        )));
-                    }
-                }
-            }
-        }
-
-        if self.show_thinking && !self.thinking.is_empty() {
-            lines.push(Line::from(Span::styled(
-                "  ┌ thinking".to_string(),
-                Style::default().fg(theme::warning()),
-            )));
-            for sub in self.thinking.lines() {
-                lines.push(Line::from(Span::styled(
-                    format!("  │ {sub}"),
-                    Style::default().fg(theme::text_muted()),
-                )));
-            }
-            lines.push(Line::from(Span::styled(
-                "  └".to_string(),
-                Style::default().fg(theme::warning()),
-            )));
-        }
-
-        if !self.current_stream.is_empty() {
-            push_markdown(lines, &self.current_stream, theme::text());
-            if let Some(last) = lines.last_mut() {
-                last.spans
-                    .push(Span::styled("▏", Style::default().fg(theme::accent())));
-            }
-        }
     }
 
     fn apply_scroll(&mut self, area: Rect) {
@@ -175,7 +89,13 @@ impl App {
 
     fn rendered_lines(&self, width: usize) -> usize {
         let mut lines: Vec<Line> = Vec::new();
-        self.collect_lines(&mut lines);
+        render::collect_lines(
+            &mut lines,
+            &self.transcript,
+            &self.thinking,
+            self.show_thinking,
+            &self.current_stream,
+        );
         lines
             .iter()
             .map(|l| {

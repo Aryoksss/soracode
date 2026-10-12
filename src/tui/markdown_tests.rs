@@ -3,7 +3,7 @@
 use ratatui::style::Color;
 use ratatui::text::Line;
 
-use super::markdown::{push_markdown, render_line};
+use super::markdown::{push_markdown_indented, render_line};
 
 fn text(line: &Line<'_>) -> String {
     line.spans.iter().map(|s| s.content.as_ref()).collect()
@@ -11,7 +11,7 @@ fn text(line: &Line<'_>) -> String {
 
 fn render(md: &str) -> Vec<String> {
     let mut lines = Vec::new();
-    push_markdown(&mut lines, md, Color::White);
+    push_markdown_indented(&mut lines, md, Color::White, "");
     lines
         .iter()
         .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect())

@@ -20,21 +20,23 @@ impl App {
                     args
                 };
                 self.transcript
-                    .push(Line2::Tool(format!("⏺ {name}({short})")));
+                    .push(Line2::Tool(format!("{name}({short})")));
             }
             AgentEvent::ToolEnd { name, output } => {
                 if matches!(name.as_str(), "edit" | "write") {
                     self.push_file_change(&name, &output);
                     return;
                 }
-                let first = output.lines().next().unwrap_or("").to_string();
-                let extra = output.lines().count().saturating_sub(1);
+                let mut rows = output.lines();
+                let first = rows.next().unwrap_or("").to_string();
+                let extra = rows.count();
                 let text = if extra > 0 {
-                    format!("◀ {name}: {first}  (+{extra} more lines)")
+                    format!("{first}  (+{extra} more lines)")
                 } else {
-                    format!("◀ {name}: {first}")
+                    first
                 };
-                self.transcript.push(Line2::Info(text));
+                let _ = name;
+                self.transcript.push(Line2::Result(text));
             }
             AgentEvent::SubagentStart { label } => {
                 self.transcript
@@ -87,8 +89,8 @@ impl App {
     /// Render a `write`/`edit` result as a header plus a colored diff.
     fn push_file_change(&mut self, name: &str, output: &str) {
         let (head, changes) = super::diff::file_change(output);
-        self.transcript
-            .push(Line2::Tool(format!("⎿  {name}: {head}")));
+        let _ = name;
+        self.transcript.push(Line2::Result(head));
         for line in changes {
             self.transcript.push(Line2::Diff(line));
         }
