@@ -200,7 +200,7 @@ impl App {
             spans.extend(self.shimmer(&format!("{} working…  Ctrl-C cancel", self.spinner())));
         } else {
             spans.push(Span::styled(
-                "ready — Enter send  Tab sessions  F2 select/copy  / commands",
+                "ready — Enter send  Tab sessions  drag to copy  / commands",
                 Style::default().fg(theme::TEXT_MUTED),
             ));
         }

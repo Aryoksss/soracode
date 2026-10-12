@@ -27,6 +27,7 @@ use sidebar::load_sessions;
 pub(crate) use sidebar::shared;
 
 use std::io;
+use std::io::Write as _;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -43,6 +44,12 @@ use crate::agent::AgentEvent;
 use crate::config::Config;
 use crate::llm::Client;
 use crate::session::Session;
+
+/// Cell-motion SGR mouse tracking: wheel and clicks reach the app, but the
+/// terminal keeps drag-selection, so a plain drag copies without a toggle.
+/// crossterm's own capture adds `?1003h` (all-motion) and would steal the drag.
+const MOUSE_ON: &str = "\x1b[?1000h\x1b[?1002h\x1b[?1006h";
+const MOUSE_OFF: &str = "\x1b[?1000l\x1b[?1002l\x1b[?1006l";
 
 /// The session the next submission will run against, swappable from the
 /// sidebar so a user can resume a different session without restarting.
@@ -174,22 +181,16 @@ impl App {
     {
         enable_raw_mode()?;
         let mut stdout = io::stdout();
-        execute!(
-            stdout,
-            EnterAlternateScreen,
-            crossterm::event::EnableMouseCapture
-        )?;
+        execute!(stdout, EnterAlternateScreen)?;
+        write!(stdout, "{MOUSE_ON}")?;
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
 
         let res = self.event_loop(&mut terminal, &mut on_submit);
 
         disable_raw_mode()?;
-        execute!(
-            terminal.backend_mut(),
-            crossterm::event::DisableMouseCapture,
-            LeaveAlternateScreen
-        )?;
+        write!(terminal.backend_mut(), "{MOUSE_OFF}")?;
+        execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
         terminal.show_cursor()?;
         res
     }
@@ -229,9 +230,9 @@ impl App {
                 if before != self.mouse_capture {
                     let mut out = io::stdout();
                     if self.mouse_capture {
-                        execute!(out, crossterm::event::EnableMouseCapture)?;
+                        write!(out, "{MOUSE_ON}")?;
                     } else {
-                        execute!(out, crossterm::event::DisableMouseCapture)?;
+                        write!(out, "{MOUSE_OFF}")?;
                     }
                 }
             }

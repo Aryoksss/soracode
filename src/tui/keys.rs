@@ -114,9 +114,9 @@ impl App {
             (KeyCode::F(2), _) => {
                 self.mouse_capture = !self.mouse_capture;
                 self.status = if self.mouse_capture {
-                    "mouse capture on — wheel scrolls; F2 again to select text".into()
+                    "wheel scrolls the transcript; drag still selects text".into()
                 } else {
-                    "mouse capture off — drag to select, then copy as usual".into()
+                    "wheel released to the terminal; drag still selects text".into()
                 };
             }
 

@@ -50,7 +50,7 @@ impl App {
                     "d, Delete        delete session",
                     "Ctrl-T           toggle thinking",
                     "Ctrl-L           clear transcript",
-                    "F2               toggle mouse — off, then drag to copy",
+                    "F2               toggle wheel capture (drag selects either way)",
                     "Ctrl-C           cancel turn / quit",
                     "Ctrl-Q           quit",
                 ] {
