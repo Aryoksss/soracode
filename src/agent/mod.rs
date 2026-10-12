@@ -74,13 +74,14 @@ impl Agent {
         // Root agents get an environment block covering the host's real tool set.
         if !is_subagent {
             let inventory = crate::tools::catalog::load_cache();
-            let env = prompt::environment_block_with_tools(
+            let mut env = prompt::environment_block_with_tools(
                 &spec.config.workspace,
                 spec.client.model(),
                 session.id(),
                 0,
                 inventory.as_ref(),
             );
+            env.push_str(&crate::skills::catalogue(&spec.config.workspace));
             messages.push(Message::System { content: env });
 
             replay_history(&session, &mut messages);

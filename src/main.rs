@@ -15,6 +15,7 @@ mod models;
 mod prompt;
 mod runtime;
 mod session;
+mod skills;
 mod tools;
 mod tui;
 mod util;
@@ -84,6 +85,7 @@ async fn run() -> Result<()> {
         );
         println!("{}", prompt::for_role(false));
         println!("{env}");
+        print!("{}", skills::catalogue(&cfg.agent().workspace));
         return Ok(());
     }
 

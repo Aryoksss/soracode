@@ -199,6 +199,23 @@ Subagents get their own context and cannot see the parent conversation, so
 their instruction must be self-contained. Depth is capped by
 `agent.subagent_max_depth`.
 
+## Skills
+
+A skill is a Markdown knowledge pack that teaches one technique in depth —
+Active Directory attacks, Linux privilege escalation, and so on. Packs are
+discovered from `~/.config/soracode/skills/` and `<workspace>/.soracode/skills/`,
+listed compactly in the prompt, and loaded in full only when the agent calls
+the `skill` tool — so a deep library never bloats the context window.
+
+```sh
+# two packs ship in .soracode/skills/
+.soracode/skills/ad-attack.md
+.soracode/skills/linux-privesc.md
+```
+
+Drop your own `*.md` files into either directory and they appear on the next
+run.
+
 ## Knowing the host
 
 Soracode discovers what is actually installed rather than assuming. Every

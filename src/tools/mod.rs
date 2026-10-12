@@ -7,6 +7,7 @@ pub mod http;
 pub mod notes;
 pub mod pentest;
 pub mod shell;
+pub mod skill;
 pub mod subagent;
 
 use std::path::PathBuf;
@@ -67,6 +68,7 @@ impl Registry {
             Box::new(notes::NoteTool::new(ctx.clone())),
             Box::new(notes::RecallTool::new(ctx.clone())),
             Box::new(host::ToolsTool::new(ctx.clone())),
+            Box::new(skill::SkillTool::new(ctx.clone())),
             Box::new(pentest::NmapParseTool::new(ctx.clone())),
             Box::new(pentest::NucleiParseTool::new(ctx.clone())),
             Box::new(pentest::CmeParseTool::new(ctx.clone())),
