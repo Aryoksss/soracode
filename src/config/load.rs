@@ -150,6 +150,7 @@ impl Config {
         if parsed.default_model.is_some() {
             self.default_model = parsed.default_model;
         }
+        self.mcp.extend(parsed.mcp);
         Ok(())
     }
 

@@ -77,6 +77,8 @@ struct OcMcp {
     #[serde(default)]
     env: BTreeMap<String, String>,
     #[serde(default)]
+    url: String,
+    #[serde(default)]
     disabled: bool,
 }
 
@@ -160,6 +162,7 @@ pub(super) fn parse(text: &str) -> Result<OpenCode> {
                     .into_iter()
                     .map(|(k, v)| (k, env_expand(&v)))
                     .collect(),
+                url: env_expand(&m.url),
                 disabled: m.disabled,
             },
         );

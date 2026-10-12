@@ -8,7 +8,7 @@ use serde_json::Value;
 use crate::error::Result;
 use crate::tools::Tool;
 
-use super::client::McpClient;
+use super::McpClient;
 
 /// A remote MCP tool wrapped so the agent can call it by name.
 pub struct McpTool {

@@ -83,12 +83,17 @@ pub struct ModelsFile {
     /// Model used when none is requested.
     #[serde(default)]
     pub default_model: Option<String>,
+    /// MCP servers keyed by name.
+    #[serde(default)]
+    pub mcp: BTreeMap<String, McpServer>,
 }
 
-/// A stdio MCP server: a command to launch and speak JSON-RPC to over pipes.
+/// An MCP server. Give it a `command` for a stdio child process, or a `url`
+/// for a remote SSE/HTTP endpoint; `url` wins when both are present.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct McpServer {
-    /// Executable to run.
+    /// Executable to run (stdio transport).
+    #[serde(default)]
     pub command: String,
     /// Arguments passed to it.
     #[serde(default)]
@@ -96,9 +101,33 @@ pub struct McpServer {
     /// Extra environment variables for the child, on top of the inherited set.
     #[serde(default)]
     pub env: BTreeMap<String, String>,
+    /// Remote SSE endpoint (e.g. `http://localhost:9876`).
+    #[serde(default)]
+    pub url: String,
     /// Disable a server without deleting its block.
     #[serde(default)]
     pub disabled: bool,
+}
+
+impl McpServer {
+    /// Which transport this server uses.
+    #[must_use]
+    pub fn transport(&self) -> McpTransport {
+        if !self.url.is_empty() {
+            McpTransport::Sse
+        } else {
+            McpTransport::Stdio
+        }
+    }
+}
+
+/// How an MCP server is reached.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum McpTransport {
+    /// A child process spoken to over stdin/stdout.
+    Stdio,
+    /// A remote endpoint over Server-Sent Events + HTTP POST.
+    Sse,
 }
 
 pub(super) fn default_db() -> PathBuf {

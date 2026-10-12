@@ -185,4 +185,37 @@ fn default_mode_is_auto() {
     assert_eq!(AgentConfig::default().mode, Mode::Auto);
 }
 
+#[test]
+fn a_models_file_carries_mcp_servers() {
+    let text = r#"
+default_model = "m"
+
+[models.m]
+provider = "p"
+model = "x"
+max_tokens = 1
+
+[mcp.burp]
+url = "http://localhost:9876"
+
+[mcp.fs]
+command = "mcp-fs"
+args = ["--root", "."]
+"#;
+    let f: ModelsFile = toml::from_str(text).expect("parse");
+    assert_eq!(f.mcp.len(), 2);
+    assert_eq!(f.mcp["burp"].transport(), McpTransport::Sse);
+    assert_eq!(f.mcp["fs"].transport(), McpTransport::Stdio);
+}
+
+#[test]
+fn a_server_with_both_fields_prefers_sse() {
+    let s = McpServer {
+        command: "x".into(),
+        url: "http://h".into(),
+        ..Default::default()
+    };
+    assert_eq!(s.transport(), McpTransport::Sse);
+}
+
 mod opencode;

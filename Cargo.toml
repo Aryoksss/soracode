@@ -20,6 +20,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "fs
 # HTTP client (rustls => no OpenSSL, static, light)
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
 futures-util = "0.3"
+bytes = "1"
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

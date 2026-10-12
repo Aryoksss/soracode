@@ -86,13 +86,14 @@ Add a model by adding a key under `models`; its selectable name is
 
 ## MCP servers
 
-soracode can launch any [Model Context Protocol](https://modelcontextprotocol.io)
-server over stdio and expose its tools to the agent. A server named `burp`
-turns its `scan_target` tool into `mcp_burp_scan_target`:
+soracode speaks [Model Context Protocol](https://modelcontextprotocol.io) and
+exposes a server's tools to the agent. A server named `burp` turns its
+`scan_target` tool into `mcp_burp_scan_target`.
+
+Two transports are supported. Use `command` for a local stdio server:
 
 ```jsonc
 "mcp": {
-  "burp": { "command": "java", "args": ["-jar", "/opt/burp-mcp.jar", "--stdio"] },
   "filesystem": {
     "command": "npx",
     "args": ["-y", "@modelcontextprotocol/server-filesystem", "/srv/evidence"]
@@ -100,8 +101,25 @@ turns its `scan_target` tool into `mcp_burp_scan_target`:
 }
 ```
 
-Servers start once per session. One that fails to launch is skipped, not fatal;
-`"disabled": true` turns one off without deleting it.
+Use `url` for a remote SSE/HTTP endpoint — for example the Burp Suite MCP
+extension, which listens on `http://localhost:9876`:
+
+```jsonc
+"mcp": {
+  "burp": { "url": "http://localhost:9876" }
+}
+```
+
+The same block works in `soracode.models.toml`:
+
+```toml
+[mcp.burp]
+url = "http://localhost:9876"
+```
+
+When both `command` and `url` are set, `url` wins. Servers start once per
+session. One that fails to launch is skipped, not fatal; `"disabled": true`
+turns one off without deleting it.
 
 ## Tools
 

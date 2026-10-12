@@ -1,4 +1,4 @@
-//! A live stdio MCP session: a child process spoken to over JSON-RPC.
+//! A stdio MCP session: a child process spoken to over JSON-RPC.
 
 use std::process::Stdio;
 
@@ -13,7 +13,7 @@ use crate::error::{Error, Result};
 use super::jsonrpc::{self, Frame};
 
 /// One running MCP server, with its request id counter and pipes.
-pub struct McpClient {
+pub struct StdioClient {
     name: String,
     stdin: Mutex<ChildStdin>,
     stdout: Mutex<BufReader<ChildStdout>>,
@@ -22,7 +22,7 @@ pub struct McpClient {
     _child: Mutex<Child>,
 }
 
-impl McpClient {
+impl StdioClient {
     /// Launch a server, run the `initialize` handshake, and return the client.
     ///
     /// # Errors
@@ -148,32 +148,7 @@ impl McpClient {
     /// # Errors
     /// Returns [`Error::Tool`] when `tools/list` fails.
     pub async fn list_tools(&self) -> Result<Vec<RemoteTool>> {
-        let v = self.call("tools/list", json!({})).await?;
-        let items = v
-            .get("tools")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        Ok(items
-            .into_iter()
-            .filter_map(|t| {
-                let name = t.get("name")?.as_str()?.to_string();
-                let description = t
-                    .get("description")
-                    .and_then(Value::as_str)
-                    .unwrap_or("")
-                    .to_string();
-                let schema = t
-                    .get("inputSchema")
-                    .cloned()
-                    .unwrap_or_else(|| json!({ "type": "object" }));
-                Some(RemoteTool {
-                    name,
-                    description,
-                    schema,
-                })
-            })
-            .collect())
+        super::remote_tools(&self.call("tools/list", json!({})).await?)
     }
 
     /// Invoke a tool and flatten its content blocks into display text.
@@ -184,14 +159,7 @@ impl McpClient {
         let v = self
             .call("tools/call", json!({ "name": tool, "arguments": args }))
             .await?;
-        if v.get("isError").and_then(Value::as_bool).unwrap_or(false) {
-            return Err(Error::Tool(format!(
-                "mcp `{}`: tool `{tool}` reported an error: {}",
-                self.name,
-                flatten_content(&v)
-            )));
-        }
-        Ok(flatten_content(&v))
+        super::flatten_tool_result(&self.name, tool, &v)
     }
 }
 
@@ -203,24 +171,4 @@ pub struct RemoteTool {
     pub description: String,
     /// JSON Schema for the arguments object.
     pub schema: Value,
-}
-
-/// Join an MCP `content` array into plain text.
-fn flatten_content(v: &Value) -> String {
-    let Some(items) = v.get("content").and_then(Value::as_array) else {
-        return v.to_string();
-    };
-    let mut out: Vec<String> = Vec::new();
-    for item in items {
-        match item.get("type").and_then(Value::as_str) {
-            Some("text") => {
-                if let Some(t) = item.get("text").and_then(Value::as_str) {
-                    out.push(t.to_string());
-                }
-            }
-            Some(other) => out.push(format!("[{other} content omitted]")),
-            None => {}
-        }
-    }
-    out.join("\n")
 }
