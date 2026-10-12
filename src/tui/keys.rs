@@ -9,6 +9,24 @@ use crate::agent::AgentEvent;
 impl App {
     /// Keys while the session sidebar holds focus: move the highlight, resume
     /// the highlighted session, or hand focus back to the input.
+    /// Start a turn: record the prompt, flip to busy, and hand it off.
+    pub(super) fn submit<F>(&mut self, text: String, on_submit: &mut F)
+    where
+        F: FnMut(String, UnboundedSender<AgentEvent>) + Send + 'static,
+    {
+        if self.history.last() != Some(&text) {
+            self.history.push(text.clone());
+        }
+        self.turn_marks.push(self.transcript.len());
+        self.transcript.push(Line2::User(text.clone()));
+        self.status = "running…".into();
+        self.auto_scroll = true;
+        self.busy = true;
+        self.busy_since = Some(std::time::Instant::now());
+        self.thinking.clear();
+        on_submit(text, self.tx.clone());
+    }
+
     fn handle_sidebar_key(&mut self, key: KeyEvent) -> bool {
         match (key.code, key.modifiers) {
             (KeyCode::Char('c'), KeyModifiers::CONTROL)
@@ -140,25 +158,15 @@ impl App {
                     return false;
                 }
                 if self.busy {
-                    self.input = text;
-                    self.status = "still working — esc or Ctrl-C to interrupt".into();
+                    self.queued = Some(text);
+                    self.status = "queued — sends when this turn finishes".into();
                     return false;
                 }
                 if let Some(rest) = text.strip_prefix('/') {
                     self.run_slash(rest, on_submit);
                     return false;
                 }
-                if self.history.last() != Some(&text) {
-                    self.history.push(text.clone());
-                }
-                self.turn_marks.push(self.transcript.len());
-                self.transcript.push(Line2::User(text.clone()));
-                self.status = "running…".into();
-                self.auto_scroll = true;
-                self.busy = true;
-                self.busy_since = Some(std::time::Instant::now());
-                self.thinking.clear();
-                on_submit(text, self.tx.clone());
+                self.submit(text, on_submit);
             }
             (KeyCode::Up, _) => {
                 if !self.history.is_empty() {

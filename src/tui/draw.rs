@@ -1,4 +1,4 @@
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Wrap};
@@ -185,15 +185,31 @@ impl App {
                     .collect::<Vec<_>>(),
             )
         };
+        let mut block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(Style::default().fg(border));
+        if let Some(q) = &self.queued {
+            let chip = format!(" queued: {} ", truncate(q, 40));
+            block = block.title(
+                Line::from(Span::styled(chip, Style::default().fg(theme::warning())))
+                    .alignment(Alignment::Right),
+            );
+        }
         let para = Paragraph::new(body)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_type(BorderType::Rounded)
-                    .border_style(Style::default().fg(border)),
-            )
+            .block(block)
             .style(Style::default().bg(theme::bg()))
             .wrap(Wrap { trim: false });
         f.render_widget(para, area);
     }
+}
+
+/// Shorten `s` to `max` characters, adding an ellipsis when it was cut.
+fn truncate(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        return s.to_string();
+    }
+    let mut out: String = s.chars().take(max.saturating_sub(1)).collect();
+    out.push('…');
+    out
 }

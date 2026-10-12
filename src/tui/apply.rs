@@ -4,13 +4,17 @@ use super::{App, Line2};
 use crate::agent::AgentEvent;
 
 impl App {
-    pub(super) fn apply(&mut self, ev: AgentEvent) {
+    /// Fold one agent event into the view. Returns the next queued instruction
+    /// to run, when a turn finishes with one waiting.
+    pub(super) fn apply(&mut self, ev: AgentEvent) -> Option<String> {
         match ev {
             AgentEvent::Text(t) => {
                 self.current_stream.push_str(&t);
+                None
             }
             AgentEvent::Reasoning(r) => {
                 self.thinking.push_str(&r);
+                None
             }
             AgentEvent::ToolStart { name, args } => {
                 self.flush_stream();
@@ -21,60 +25,83 @@ impl App {
                 };
                 self.transcript
                     .push(Line2::Tool(format!("{name}({short})")));
+                None
             }
             AgentEvent::ToolEnd { name, output } => {
                 if matches!(name.as_str(), "edit" | "write") {
-                    self.push_file_change(&name, &output);
-                    return;
-                }
-                let mut rows = output.lines();
-                let first = rows.next().unwrap_or("").to_string();
-                let extra = rows.count();
-                let text = if extra > 0 {
-                    format!("{first}  (+{extra} more lines)")
+                    self.push_file_change(&output);
                 } else {
-                    first
-                };
-                let _ = name;
-                self.transcript.push(Line2::Result(text));
+                    let mut rows = output.lines();
+                    let first = rows.next().unwrap_or("").to_string();
+                    let extra = rows.count();
+                    let text = if extra > 0 {
+                        format!("{first}  (+{extra} more lines)")
+                    } else {
+                        first
+                    };
+                    self.transcript.push(Line2::Result(text));
+                }
+                None
             }
             AgentEvent::SubagentStart { label } => {
                 self.transcript
                     .push(Line2::Info(format!("⇢ subagent `{label}` started")));
+                None
             }
             AgentEvent::Usage { prompt, completion } => {
                 self.prompt_tokens = prompt;
                 self.completion_tokens = completion;
+                None
             }
-            AgentEvent::Info(m) => self.transcript.push(Line2::Info(m)),
-            AgentEvent::Error(m) => self.transcript.push(Line2::Error(m)),
+            AgentEvent::Info(m) => {
+                self.transcript.push(Line2::Info(m));
+                None
+            }
+            AgentEvent::Error(m) => {
+                self.transcript.push(Line2::Error(m));
+                None
+            }
             AgentEvent::Done => {
-                self.flush_stream();
-                self.busy = false;
-                self.busy_since = None;
-                self.status.clear();
-                self.auto_scroll = true;
-                if self.show_sidebar {
-                    super::sidebar::refresh(self);
+                let next = self.finish("");
+                if next.is_none() {
+                    self.status.clear();
                 }
+                next
             }
             AgentEvent::Cancelled => {
-                self.flush_stream();
-                self.busy = false;
-                self.busy_since = None;
-                self.status = "cancelled".into();
-                self.auto_scroll = true;
+                self.finish("cancelled");
+                self.restore_queued();
+                None
             }
             AgentEvent::Paused => {
-                self.flush_stream();
-                self.busy = false;
-                self.busy_since = None;
+                self.finish("paused");
                 self.transcript.push(Line2::Info(
                     "paused — /resume clears the pause, then send again to continue".into(),
                 ));
-                self.status = "paused".into();
-                self.auto_scroll = true;
+                self.restore_queued();
+                None
             }
+        }
+    }
+
+    /// Close out a turn: flush the stream, drop the busy flag, and hand back any
+    /// instruction the operator queued while it ran.
+    fn finish(&mut self, status: &str) -> Option<String> {
+        self.flush_stream();
+        self.busy = false;
+        self.busy_since = None;
+        self.status = status.to_string();
+        self.auto_scroll = true;
+        if self.show_sidebar {
+            super::sidebar::refresh(self);
+        }
+        self.queued.take()
+    }
+
+    /// Return a queued instruction to the prompt after an interrupted turn.
+    fn restore_queued(&mut self) {
+        if let Some(q) = self.queued.take() {
+            self.input = q;
         }
     }
 
@@ -87,9 +114,8 @@ impl App {
     }
 
     /// Render a `write`/`edit` result as a header plus a colored diff.
-    fn push_file_change(&mut self, name: &str, output: &str) {
+    fn push_file_change(&mut self, output: &str) {
         let (head, changes) = super::diff::file_change(output);
-        let _ = name;
         self.transcript.push(Line2::Result(head));
         for line in changes {
             self.transcript.push(Line2::Diff(line));
