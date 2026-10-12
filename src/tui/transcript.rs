@@ -1,9 +1,7 @@
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span, Text};
-use ratatui::widgets::{
-    Block, BorderType, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap,
-};
+use ratatui::widgets::{Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap};
 
 use super::markdown::push_markdown;
 use super::{theme, App};
@@ -57,13 +55,6 @@ impl App {
 
         self.apply_scroll(area);
         let para = Paragraph::new(Text::from(lines))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_type(BorderType::Rounded)
-                    .border_style(Style::default().fg(theme::border()))
-                    .title(self.transcript_title()),
-            )
             .wrap(Wrap { trim: false })
             .scroll((self.scroll, 0));
         f.render_widget(para, area);
@@ -75,21 +66,18 @@ impl App {
         for l in &self.transcript {
             match l {
                 Line2::User(t) => lines.push(Line::from(vec![
-                    Span::styled("▌ ", Style::default().fg(theme::role_user())),
+                    Span::styled("> ", Style::default().fg(theme::role_user())),
                     Span::styled(
-                        "you ",
+                        t.clone(),
                         Style::default()
-                            .fg(theme::role_user())
+                            .fg(theme::text())
                             .add_modifier(Modifier::BOLD),
                     ),
-                    Span::styled(t.clone(), Style::default().fg(theme::text())),
                 ])),
                 Line2::Assistant(t) => {
                     lines.push(Line::from(Span::styled(
-                        "⏺ soracode",
-                        Style::default()
-                            .fg(theme::role_assistant())
-                            .add_modifier(Modifier::BOLD),
+                        "⏺",
+                        Style::default().fg(theme::role_assistant()),
                     )));
                     push_markdown(lines, t, theme::text());
                 }
@@ -168,31 +156,8 @@ impl App {
         }
     }
 
-    /// Transcript top border: wordmark, session id, and active model.
-    pub(super) fn transcript_title(&self) -> Line<'static> {
-        Line::from(vec![
-            Span::styled(
-                " soracode ",
-                Style::default()
-                    .fg(theme::bg())
-                    .bg(theme::accent())
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::styled("  ", Style::default()),
-            Span::styled(
-                format!("{} ", self.session_id),
-                Style::default().fg(theme::text_dim()),
-            ),
-            Span::styled("· ", Style::default().fg(theme::text_dim())),
-            Span::styled(
-                format!("{} ", self.model),
-                Style::default().fg(theme::text_muted()),
-            ),
-        ])
-    }
-
     fn apply_scroll(&mut self, area: Rect) {
-        let height = area.height.saturating_sub(2);
+        let height = area.height;
         let total = self.content_height(area).min(u16::MAX as usize) as u16;
         let max_scroll = total.saturating_sub(height);
         if self.auto_scroll {
@@ -204,7 +169,7 @@ impl App {
 
     /// Rendered line count after wrapping to the pane width.
     fn content_height(&self, area: Rect) -> usize {
-        let width = area.width.saturating_sub(2).max(1) as usize;
+        let width = area.width.max(1) as usize;
         self.rendered_lines(width)
     }
 
@@ -227,7 +192,7 @@ impl App {
     /// Drawn only when content overflows the viewport.
     fn draw_scrollbar(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
         let content = self.content_height(area);
-        let view = area.height.saturating_sub(2) as usize;
+        let view = area.height as usize;
         if content <= view {
             return;
         }

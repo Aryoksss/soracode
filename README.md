@@ -164,12 +164,14 @@ soracode --resume a0a3cb94   # resume by id
 soracode --continue          # resume the newest
 ```
 
-Delete a session from the TUI sidebar with `d` (or `Delete`).
+Press `Tab` to open the session list, then delete a session with `d`
+(or `Delete`).
 
 ## Using the TUI
 
-Type an instruction and press `Enter`. Press `/` to see commands. Drag to
-select text and copy it as usual — a drag is never captured by the app.
+Type an instruction and press `Enter`. Press `/` to see commands. The session
+list is hidden by default — press `Tab` to open it. Drag to select text and
+copy it as usual; a drag is never captured by the app.
 
 | Command | Action |
 | --- | --- |
@@ -191,7 +193,7 @@ select text and copy it as usual — a drag is never captured by the app.
 | `↑` / `↓` | walk back through submitted instructions |
 | `PageUp` / `PageDown` | scroll the transcript |
 | mouse wheel | scroll the transcript |
-| `Tab` | focus the session sidebar |
+| `Tab` | open the session list (resume with `⏎`) |
 | `Ctrl-B` / `Ctrl-T` | toggle sidebar / model thinking |
 | `Ctrl-Y` | copy the last reply to the terminal clipboard |
 | `Ctrl-L` | clear the transcript |

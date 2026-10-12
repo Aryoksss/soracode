@@ -112,6 +112,12 @@ impl App {
                 self.sidebar_focus = true;
             }
 
+            (KeyCode::Tab, _) => {
+                self.show_sidebar = true;
+                sidebar::refresh(self);
+                self.sidebar_focus = true;
+            }
+
             (KeyCode::Char('l'), KeyModifiers::CONTROL) => {
                 self.transcript.clear();
                 self.current_stream.clear();
@@ -140,6 +146,7 @@ impl App {
                 self.status = "running…".into();
                 self.auto_scroll = true;
                 self.busy = true;
+                self.busy_since = Some(std::time::Instant::now());
                 self.thinking.clear();
                 on_submit(text, self.tx.clone());
             }

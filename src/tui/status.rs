@@ -1,4 +1,4 @@
-//! The status bar: model, mode, live status, and a token counter.
+//! The hint bar under the input: model, mode, live status, token counter.
 
 use ratatui::layout::{Alignment, Rect};
 use ratatui::style::{Modifier, Style};
@@ -9,28 +9,30 @@ use super::{theme, App};
 
 impl App {
     pub(super) fn draw_status(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
-        let tokens = self.prompt_tokens + self.completion_tokens;
         let mut spans = vec![
             Span::styled(
-                format!(" {} ", self.model),
+                self.model.clone(),
                 Style::default()
-                    .fg(theme::bg())
-                    .bg(theme::accent())
+                    .fg(theme::accent())
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::raw(" "),
+            Span::styled("  ", Style::default()),
             Span::styled(
-                format!("{} ", self.mode.as_str()),
-                Style::default().fg(theme::interactive()),
+                self.mode.as_str().to_string(),
+                Style::default().fg(theme::text_dim()),
             ),
-            Span::styled("· ", Style::default().fg(theme::text_dim())),
+            Span::styled("  ·  ", Style::default().fg(theme::text_dim())),
         ];
         if self.busy {
-            spans.extend(self.shimmer(&format!("{} working…  Ctrl-C cancel", self.spinner())));
+            spans.extend(self.shimmer(&format!(
+                "{}  working…  {}s  ·  esc to interrupt",
+                self.spinner(),
+                self.elapsed()
+            )));
         } else if self.status.is_empty() || self.status == "ready" {
             spans.push(Span::styled(
-                "ready — Enter send  Tab sessions  drag to copy  / commands",
-                Style::default().fg(theme::text_muted()),
+                "ready  ·  / for commands  ·  Tab for sessions",
+                Style::default().fg(theme::text_dim()),
             ));
         } else {
             spans.push(Span::styled(
@@ -39,8 +41,9 @@ impl App {
             ));
         }
         let left = Line::from(spans);
+        let tokens = self.prompt_tokens + self.completion_tokens;
         let right = Line::from(Span::styled(
-            format!("{tokens} tok "),
+            format!("{tokens} tok  "),
             Style::default().fg(theme::text_dim()),
         ))
         .alignment(Alignment::Right);

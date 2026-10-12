@@ -20,7 +20,7 @@ impl App {
                     args
                 };
                 self.transcript
-                    .push(Line2::Tool(format!("▶ {name} {short}")));
+                    .push(Line2::Tool(format!("⏺ {name}({short})")));
             }
             AgentEvent::ToolEnd { name, output } => {
                 if matches!(name.as_str(), "edit" | "write") {
@@ -49,8 +49,8 @@ impl App {
             AgentEvent::Done => {
                 self.flush_stream();
                 self.busy = false;
-                self.status =
-                    "ready — Enter send  Tab sessions  ↑↓ history  F2 copy  / commands".into();
+                self.busy_since = None;
+                self.status.clear();
                 self.auto_scroll = true;
                 if self.show_sidebar {
                     super::sidebar::refresh(self);
@@ -59,12 +59,14 @@ impl App {
             AgentEvent::Cancelled => {
                 self.flush_stream();
                 self.busy = false;
+                self.busy_since = None;
                 self.status = "cancelled".into();
                 self.auto_scroll = true;
             }
             AgentEvent::Paused => {
                 self.flush_stream();
                 self.busy = false;
+                self.busy_since = None;
                 self.transcript.push(Line2::Info(
                     "paused — /resume clears the pause, then send again to continue".into(),
                 ));
@@ -86,7 +88,7 @@ impl App {
     fn push_file_change(&mut self, name: &str, output: &str) {
         let (head, changes) = super::diff::file_change(output);
         self.transcript
-            .push(Line2::Tool(format!("◀ {name}: {head}")));
+            .push(Line2::Tool(format!("⎿  {name}: {head}")));
         for line in changes {
             self.transcript.push(Line2::Diff(line));
         }

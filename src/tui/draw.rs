@@ -82,6 +82,11 @@ impl App {
         }
     }
 
+    /// Seconds since the running turn started, for the busy indicator.
+    pub(super) fn elapsed(&self) -> u64 {
+        self.busy_since.map_or(0, |t| t.elapsed().as_secs())
+    }
+
     fn draw_palette(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
         let (title, rows): (&str, Vec<(String, String)>) =
             match (&self.palette.models, &self.palette.files) {
@@ -159,7 +164,7 @@ impl App {
         };
         let body: Text = if self.input.is_empty() {
             Text::from(Line::from(vec![
-                Span::styled("  ❯ ", Style::default().fg(theme::accent())),
+                Span::styled(" > ", Style::default().fg(theme::accent())),
                 Span::styled(
                     "ask about a target, or type / for commands",
                     Style::default().fg(theme::text_dim()),
@@ -171,7 +176,7 @@ impl App {
                     .lines()
                     .enumerate()
                     .map(|(i, line)| {
-                        let prompt = if i == 0 { "  ❯ " } else { "    " };
+                        let prompt = if i == 0 { " > " } else { "   " };
                         Line::from(vec![
                             Span::styled(prompt, Style::default().fg(theme::accent())),
                             Span::styled(line.to_string(), Style::default().fg(theme::text())),
@@ -185,13 +190,9 @@ impl App {
                 Block::default()
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
-                    .border_style(Style::default().fg(border))
-                    .title(Span::styled(
-                        " instruction ",
-                        Style::default().fg(theme::interactive()),
-                    )),
+                    .border_style(Style::default().fg(border)),
             )
-            .style(Style::default().bg(theme::panel_bg()))
+            .style(Style::default().bg(theme::bg()))
             .wrap(Wrap { trim: false });
         f.render_widget(para, area);
     }

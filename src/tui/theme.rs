@@ -1,9 +1,9 @@
 //! Central colour palette for the whole TUI.
 //!
 //! Kept in one place so a "theme" is a single struct rather than a colour
-//! literal scattered through the drawing code. Defaults form a near-black
-//! canvas with a violet accent; a user can override any entry under `"theme"`
-//! in `soracode.jsonc`, given as `#rrggbb`.
+//! literal scattered through the drawing code. Defaults form a warm dark
+//! canvas with a terracotta accent; a user can override any entry under
+//! `"theme"` in `soracode.jsonc`, given as `#rrggbb`.
 
 use std::sync::OnceLock;
 
@@ -34,23 +34,23 @@ pub(super) struct Theme {
 impl Default for Theme {
     fn default() -> Self {
         Self {
-            bg: Color::Rgb(17, 17, 22),
-            panel_bg: Color::Rgb(24, 24, 31),
-            selection_bg: Color::Rgb(45, 42, 62),
-            text: Color::Rgb(232, 230, 236),
-            text_muted: Color::Rgb(130, 127, 145),
-            text_dim: Color::Rgb(80, 79, 90),
-            accent: Color::Rgb(167, 139, 250),
-            interactive: Color::Rgb(250, 178, 131),
-            border: Color::Rgb(48, 48, 58),
-            border_active: Color::Rgb(167, 139, 250),
-            success: Color::Rgb(134, 222, 150),
-            error: Color::Rgb(255, 123, 137),
-            warning: Color::Rgb(247, 178, 103),
-            info: Color::Rgb(122, 194, 240),
-            role_user: Color::Rgb(167, 139, 250),
-            role_assistant: Color::Rgb(134, 222, 150),
-            role_tool: Color::Rgb(122, 194, 240),
+            bg: Color::Rgb(30, 30, 30),
+            panel_bg: Color::Rgb(38, 38, 38),
+            selection_bg: Color::Rgb(52, 48, 45),
+            text: Color::Rgb(232, 229, 226),
+            text_muted: Color::Rgb(150, 145, 140),
+            text_dim: Color::Rgb(105, 101, 98),
+            accent: Color::Rgb(217, 119, 87),
+            interactive: Color::Rgb(230, 160, 130),
+            border: Color::Rgb(58, 56, 54),
+            border_active: Color::Rgb(217, 119, 87),
+            success: Color::Rgb(126, 200, 140),
+            error: Color::Rgb(240, 130, 130),
+            warning: Color::Rgb(230, 180, 120),
+            info: Color::Rgb(130, 175, 215),
+            role_user: Color::Rgb(150, 145, 140),
+            role_assistant: Color::Rgb(217, 119, 87),
+            role_tool: Color::Rgb(130, 175, 215),
         }
     }
 }
