@@ -7,6 +7,7 @@ mod copy;
 mod diff;
 mod draw;
 mod export;
+mod git;
 mod keys;
 mod markdown;
 mod mention;
@@ -84,6 +85,7 @@ pub struct App {
     busy: bool,
     busy_since: Option<std::time::Instant>,
     queued: Option<String>,
+    current_tool: Option<String>,
     tick: usize,
     prompt_tokens: u64,
     completion_tokens: u64,
@@ -149,6 +151,7 @@ impl App {
             busy: false,
             busy_since: None,
             queued: None,
+            current_tool: None,
             tick: 0,
             prompt_tokens: 0,
             completion_tokens: 0,

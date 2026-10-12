@@ -8,6 +8,48 @@ use ratatui::widgets::Paragraph;
 use super::{theme, App};
 
 impl App {
+    /// A single quiet line at the top: directory, branch, model and any tool
+    /// currently in flight — the Claude Code status line.
+    pub(super) fn draw_topbar(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
+        let workspace = self.cfg.agent().workspace.clone();
+        let dir = workspace
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| workspace.display().to_string());
+        let mut spans = vec![
+            Span::styled("  ", Style::default()),
+            Span::styled(dir, Style::default().fg(theme::text_muted())),
+        ];
+        if let Some(branch) = super::git::branch(&workspace) {
+            spans.push(Span::styled("  ", Style::default()));
+            spans.push(Span::styled(
+                format!("⎇ {branch}"),
+                Style::default().fg(theme::interactive()),
+            ));
+        }
+        spans.push(Span::styled("   ", Style::default()));
+        spans.push(Span::styled(
+            self.model.clone(),
+            Style::default().fg(theme::text_dim()),
+        ));
+        spans.push(Span::styled(
+            "  ·  ",
+            Style::default().fg(theme::text_dim()),
+        ));
+        spans.push(Span::styled(
+            self.mode.as_str().to_string(),
+            Style::default().fg(theme::text_dim()),
+        ));
+        if let Some(tool) = &self.current_tool {
+            spans.push(Span::styled("   ", Style::default()));
+            spans.push(Span::styled(
+                format!("{} {tool}", self.spinner()),
+                Style::default().fg(theme::role_tool()),
+            ));
+        }
+        f.render_widget(Paragraph::new(Line::from(spans)), area);
+    }
+
     pub(super) fn draw_status(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
         let mut spans = vec![
             Span::styled(

@@ -25,9 +25,11 @@ impl App {
                 };
                 self.transcript
                     .push(Line2::Tool(format!("{name}({short})")));
+                self.current_tool = Some(format!("{name}({short})"));
                 None
             }
             AgentEvent::ToolEnd { name, output } => {
+                self.current_tool = None;
                 if matches!(name.as_str(), "edit" | "write") {
                     self.push_file_change(&output);
                 } else {
@@ -89,6 +91,7 @@ impl App {
     fn finish(&mut self, status: &str) -> Option<String> {
         self.flush_stream();
         self.busy = false;
+        self.current_tool = None;
         self.busy_since = None;
         self.status = status.to_string();
         self.auto_scroll = true;

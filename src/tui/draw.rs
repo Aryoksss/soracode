@@ -33,6 +33,7 @@ impl App {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
+                Constraint::Length(1),
                 Constraint::Min(5),
                 Constraint::Length(palette_h),
                 Constraint::Length(input_h),
@@ -40,12 +41,13 @@ impl App {
             ])
             .split(main);
 
-        self.draw_pane(f, chunks[0]);
+        self.draw_topbar(f, chunks[0]);
+        self.draw_pane(f, chunks[1]);
         if self.palette.open {
-            self.draw_palette(f, chunks[1]);
+            self.draw_palette(f, chunks[2]);
         }
-        self.draw_input(f, chunks[2]);
-        self.draw_status(f, chunks[3]);
+        self.draw_input(f, chunks[3]);
+        self.draw_status(f, chunks[4]);
     }
 
     fn draw_pane(&mut self, f: &mut ratatui::Frame<'_>, area: Rect) {
