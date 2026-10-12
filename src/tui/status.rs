@@ -41,14 +41,38 @@ impl App {
             ));
         }
         let left = Line::from(spans);
-        let tokens = self.prompt_tokens + self.completion_tokens;
-        let right = Line::from(Span::styled(
-            format!("{tokens} tok  "),
-            Style::default().fg(theme::text_dim()),
-        ))
+        let right = Line::from(vec![
+            Span::styled(
+                self.context_meter(),
+                Style::default().fg(self.context_color()),
+            ),
+            Span::styled(
+                format!("{} tok  ", self.prompt_tokens + self.completion_tokens),
+                Style::default().fg(theme::text_dim()),
+            ),
+        ])
         .alignment(Alignment::Right);
         f.render_widget(Paragraph::new(Text::from(vec![left])), area);
         f.render_widget(Paragraph::new(Text::from(vec![right])), area);
+    }
+
+    /// Share of the context budget the last request used, as `NN% context`.
+    fn context_meter(&self) -> String {
+        let budget = self.cfg.agent.0.context_budget.max(1);
+        let used = self.prompt_tokens as usize;
+        format!("{}% context  ·  ", (used * 100 / budget).min(999))
+    }
+
+    fn context_color(&self) -> ratatui::style::Color {
+        let budget = self.cfg.agent.0.context_budget.max(1);
+        let ratio = self.prompt_tokens as usize * 100 / budget;
+        if ratio >= 85 {
+            theme::error()
+        } else if ratio >= 60 {
+            theme::warning()
+        } else {
+            theme::text_dim()
+        }
     }
 
     fn shimmer(&self, text: &str) -> Vec<Span<'static>> {
