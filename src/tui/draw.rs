@@ -101,18 +101,29 @@ impl App {
             .enumerate()
             .map(|(i, (name, desc))| {
                 let selected = i == self.palette.selected;
-                let style = if selected {
-                    Style::default()
-                        .fg(theme::INTERACTIVE)
-                        .bg(theme::SELECTION_BG)
-                        .add_modifier(Modifier::BOLD)
+                let bg = if selected {
+                    theme::SELECTION_BG
                 } else {
-                    Style::default().fg(theme::TEXT)
+                    theme::PANEL_BG
+                };
+                let name_fg = if selected {
+                    theme::ACCENT
+                } else {
+                    theme::TEXT
                 };
                 let marker = if selected { "▌" } else { " " };
                 Line::from(vec![
-                    Span::styled(format!("{marker} {name:<12}"), style),
-                    Span::styled(format!(" {desc}"), Style::default().fg(theme::TEXT_MUTED)),
+                    Span::styled(
+                        format!("{marker} {name:<12}"),
+                        Style::default()
+                            .fg(name_fg)
+                            .bg(bg)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        format!(" {desc}"),
+                        Style::default().fg(theme::TEXT_MUTED).bg(bg),
+                    ),
                 ])
             })
             .collect();
