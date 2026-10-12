@@ -238,3 +238,10 @@ followed them is.
 | `End` | jump to the newest output and follow it |
 | `Ctrl-C` or `Ctrl-Q` | quit |
 
+On exit the TUI prints the session id and the exact command to resume it, so a
+run can be picked up again without consulting `--sessions`:
+
+```
+soracode: session 593f5ef0 — resume with: soracode --resume 593f5ef0
+```
+

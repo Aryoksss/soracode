@@ -98,5 +98,8 @@ pub(crate) fn run_tui(client: Client, cfg: Arc<Config>, session: Arc<Session>) -
         });
     })?;
 
+    let id = shared.lock().expect("session mutex").id().to_string();
+    eprintln!("soracode: session {id} — resume with: soracode --resume {id}");
+
     Ok(())
 }
