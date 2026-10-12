@@ -99,6 +99,14 @@ fn truncate(s: &str, max: usize) -> String {
     }
 }
 
+/// Reload the sidebar list, clamping the highlight when rows disappear.
+pub(super) fn refresh(app: &mut App) {
+    app.sessions = load_sessions(&app.cfg);
+    if app.sidebar_index >= app.sessions.len() {
+        app.sidebar_index = app.sessions.len().saturating_sub(1);
+    }
+}
+
 impl App {
     /// Open the highlighted session and make it the target of the next
     /// submission. Returns the new session id, or `None` when the sidebar is

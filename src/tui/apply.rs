@@ -47,6 +47,9 @@ impl App {
                 self.busy = false;
                 self.status = "ready — type an instruction and press Enter".into();
                 self.auto_scroll = true;
+                if self.show_sidebar {
+                    super::sidebar::refresh(self);
+                }
             }
         }
     }

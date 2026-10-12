@@ -3,7 +3,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use tokio::sync::mpsc::UnboundedSender;
 
-use super::{command, App, Line2, Palette};
+use super::{command, sidebar, App, Line2, Palette};
 use crate::agent::AgentEvent;
 
 impl App {
@@ -73,12 +73,15 @@ impl App {
 
             (KeyCode::Char('b'), KeyModifiers::CONTROL) => {
                 self.show_sidebar = !self.show_sidebar;
-                if !self.show_sidebar {
+                if self.show_sidebar {
+                    sidebar::refresh(self);
+                } else {
                     self.sidebar_focus = false;
                 }
             }
 
             (KeyCode::Tab, _) if self.show_sidebar => {
+                sidebar::refresh(self);
                 self.sidebar_focus = true;
             }
 
