@@ -198,19 +198,22 @@ impl App {
 
     fn draw_status(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
         let tokens = self.prompt_tokens + self.completion_tokens;
-        let hints = if self.busy {
-            format!("{} working…  Ctrl-C cancel", self.spinner())
-        } else {
-            "Enter send  ↑↓ history  PgUp/PgDn scroll  / commands".to_string()
-        };
-        let left = Line::from(vec![
+        let mut spans = vec![
             Span::styled(
                 format!(" {} ", self.model),
                 Style::default().fg(theme::BG).bg(theme::ACCENT),
             ),
             Span::raw(" "),
-            Span::styled(hints, Style::default().fg(theme::TEXT_MUTED)),
-        ]);
+        ];
+        if self.busy {
+            spans.extend(self.shimmer(&format!("{} working…  Ctrl-C cancel", self.spinner())));
+        } else {
+            spans.push(Span::styled(
+                "Enter send  ↑↓ history  PgUp/PgDn scroll  / commands",
+                Style::default().fg(theme::TEXT_MUTED),
+            ));
+        }
+        let left = Line::from(spans);
         let right = Line::from(Span::styled(
             format!("{} tok ", tokens),
             Style::default().fg(theme::TEXT_MUTED),
@@ -218,5 +221,23 @@ impl App {
         .alignment(Alignment::Right);
         f.render_widget(Paragraph::new(Text::from(vec![left])), area);
         f.render_widget(Paragraph::new(Text::from(vec![right])), area);
+    }
+
+    fn shimmer(&self, text: &str) -> Vec<Span<'static>> {
+        let chars: Vec<char> = text.chars().collect();
+        let crest = self.tick % (chars.len().max(1) + 8);
+        chars
+            .into_iter()
+            .enumerate()
+            .map(|(i, c)| {
+                let near = i.abs_diff(crest) <= 2;
+                let color = if near {
+                    theme::INTERACTIVE
+                } else {
+                    theme::TEXT_MUTED
+                };
+                Span::styled(c.to_string(), Style::default().fg(color))
+            })
+            .collect()
     }
 }
