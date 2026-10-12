@@ -13,6 +13,7 @@ mod slash;
 mod table;
 mod theme;
 mod transcript;
+mod welcome;
 
 #[cfg(test)]
 mod markdown_tests;
@@ -53,6 +54,7 @@ enum Line2 {
     User(String),
     Assistant(String),
     Tool(String),
+    Heading(String),
     Info(String),
     Error(String),
 }
@@ -109,6 +111,8 @@ pub struct App {
     pause: Arc<std::sync::atomic::AtomicBool>,
     mode: crate::config::Mode,
     sidebar_area: ratatui::layout::Rect,
+    /// Mirrors `shared_session`'s id for the transcript header.
+    session_id: String,
 }
 
 /// A submitted instruction plus the channel to receive its events.
@@ -131,6 +135,7 @@ impl App {
         let mode = cfg.agent().mode;
         let sessions = load_sessions(&cfg);
         let db_path = cfg.db_path.clone();
+        let session_id = session.lock().unwrap().id().to_string();
         Self {
             transcript: Vec::new(),
             input: String::new(),
@@ -164,6 +169,7 @@ impl App {
             pause: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             mode,
             sidebar_area: ratatui::layout::Rect::default(),
+            session_id,
         }
     }
 

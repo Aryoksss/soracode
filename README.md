@@ -2,59 +2,52 @@
 
 An operator-controlled security agent. One static binary, no runtime to install.
 
-Point it at a target and it plans, runs tools, and keeps what it finds in an
-engagement state — hosts, services, vulns, creds, footholds — shared across
-every task and saved between runs.
+Point it at a target and it plans, runs tools, and keeps what it finds — hosts,
+services, vulns, creds, footholds — in an engagement state shared across every
+task and saved between runs.
 
 ## Install
 
-Build from source (needs [Rust](https://rustup.rs)):
+Needs [Rust](https://rustup.rs).
 
 ```sh
 cargo build --release
 install -m755 target/release/soracode ~/.local/bin/soracode
-```
-
-Check it is on your `PATH`:
-
-```sh
 soracode --version
 ```
 
-## Quick start
+## Setup
 
-soracode talks to any OpenAI-compatible endpoint. The easiest way to configure
-one is to write a starting config, then edit it:
+soracode talks to any OpenAI-compatible endpoint. Write a starting config, then
+fill in your provider:
 
 ```sh
 soracode --init-models     # writes ~/.config/soracode/soracode.jsonc
 ```
 
-Open that file, set your `baseURL`, and point `apiKey` at an environment
-variable:
-
 ```jsonc
 {
-  "model": "9router/gh/gpt-4.1",
+  "model": "<provider>/<model-id>",
 
   "provider": {
-    "9router": {
+    "<provider>": {
       "options": {
-        "baseURL": "https://9router.example.com/v1",
-        "apiKey": "{env:NINEROUTER_API_KEY}"
+        "baseURL": "https://your-endpoint.example.com/v1",
+        "apiKey": "{env:PROVIDER_API_KEY}"
       },
       "models": {
-        "gh/gpt-4.1": { "name": "GPT-4.1" }
+        "<model-id>": { "name": "My Model" }
       }
     }
   }
 }
 ```
 
-Then export the key and run:
+Never write a key into the file — use `{env:VAR}` and export it instead, so the
+config stays safe to share.
 
 ```sh
-export NINEROUTER_API_KEY=sk-...
+export PROVIDER_API_KEY=sk-...
 soracode
 ```
 
@@ -64,42 +57,10 @@ That opens the interactive TUI. For a one-off task without the UI:
 soracode -n -i "scan example.com and report open ports"
 ```
 
-`soracode --models` shows everything you have configured and which one is
-active.
+## Providers
 
-## Configuration
-
-Config lives in `~/.config/soracode/soracode.jsonc`. JSONC means comments and
-trailing commas are allowed. A file in the current directory is read too, so
-you can keep a per-project config next to your work.
-
-The model file uses the same `provider` / `models` layout as OpenCode, so a
-config you already have for another tool reads the way you expect.
-
-### Switch model
-
-```sh
-soracode -m 9router/gh/gpt-4.1   # <provider>/<model-id>
-soracode -m fast                 # a short name, if you defined one
-```
-
-Inside the TUI, `/model` opens a picker.
-
-### Add a model
-
-Add a key under `models`. Its selectable name is `provider/model-id`:
-
-```jsonc
-"models": {
-  "gh/gpt-4.1":      { "name": "GPT-4.1" },
-  "kr/deepseek-3.2": { "name": "DeepSeek 3.2", "temperature": 0.2 }
-}
-```
-
-### Add a provider
-
-Add another block with its own `options`. Anthropic and Gemini are supported
-directly via a `wire` field:
+OpenAI-compatible is the default and works with any router or local server.
+Anthropic and Gemini are supported directly:
 
 ```jsonc
 "anthropic": {
@@ -109,22 +70,29 @@ directly via a `wire` field:
 }
 ```
 
-Never write a key into the file — use `{env:VAR}` and export the variable. That
-way the config is safe to commit or share.
+Use `"wire": "google"` for Gemini. A local server is the same block with
+`"baseURL": "http://127.0.0.1:1234/v1"`.
+
+## Models
+
+Switch with a single flag, or `/model` inside the TUI:
+
+```sh
+soracode -m <provider>/<model-id>
+```
+
+Add a model by adding a key under `models`; its selectable name is
+`provider/model-id`. `soracode --models` lists everything configured.
 
 ## MCP servers
 
 soracode can launch any [Model Context Protocol](https://modelcontextprotocol.io)
-server over stdio and expose its tools to the agent. Each remote tool shows up
-as `mcp_<server>_<tool>` — a Burp Suite MCP server named `burp` turns its
-`scan_target` into `mcp_burp_scan_target`:
+server over stdio and expose its tools to the agent. A server named `burp`
+turns its `scan_target` tool into `mcp_burp_scan_target`:
 
 ```jsonc
 "mcp": {
-  "burp": {
-    "command": "java",
-    "args": ["-jar", "/opt/burp-mcp.jar", "--stdio"]
-  },
+  "burp": { "command": "java", "args": ["-jar", "/opt/burp-mcp.jar", "--stdio"] },
   "filesystem": {
     "command": "npx",
     "args": ["-y", "@modelcontextprotocol/server-filesystem", "/srv/evidence"]
@@ -132,21 +100,20 @@ as `mcp_<server>_<tool>` — a Burp Suite MCP server named `burp` turns its
 }
 ```
 
-Servers start once per session. One that fails to launch is reported and
-skipped, not fatal; `"disabled": true` turns one off without deleting it.
+Servers start once per session. One that fails to launch is skipped, not fatal;
+`"disabled": true` turns one off without deleting it.
 
 ## Tools
 
-The agent runs shell commands and parses the output of the common security
-tools into the engagement state, so findings are structured instead of sitting
-in scrollback:
+The agent runs shell commands and parses the output of common security tools
+into the engagement state, so findings are structured instead of buried in
+scrollback.
 
 | | |
 | --- | --- |
 | **Recon** | `nmap_parse`, `nuclei_parse`, `gobuster_parse` |
 | **Web** | `xss_detect`, `jwt_analyze`, `http` |
-| **AD / internal** | `cme_parse`, `bloodhound_parse` |
-| **Injection** | `sqlmap_parse` |
+| **Internal** | `cme_parse`, `bloodhound_parse`, `sqlmap_parse` |
 | **Engagement** | `state_update`, `state_query`, `attack_path_suggest`, `report_gen` |
 | **Filesystem** | `read`, `write`, `edit`, `list`, `glob`, `grep` |
 | **Other** | `shell`, `note`, `recall`, `tools`, `subagent`, `skill` |
@@ -158,8 +125,8 @@ visible to the enumerator immediately.
 ## Skills
 
 A skill is a Markdown pack that teaches one technique in depth. Packs are
-listed in the prompt and loaded only when the agent needs one, so a deep
-library never bloats the context window. Six ship built in:
+listed in the prompt and loaded only when needed, so a deep library never
+bloats the context window. Six ship built in:
 
 ```
 ad-attack  cloud-attack  kerberos  linux-privesc  ssrf  web-attack
@@ -181,28 +148,27 @@ soracode --continue          # resume the newest
 
 Delete a session from the TUI sidebar with `d` (or `Delete`).
 
-## Getting around the TUI
+## Using the TUI
 
-Type an instruction and press `Enter`. Press `/` to see the commands.
+Type an instruction and press `Enter`. Press `/` to see commands.
 
 | Command | Action |
 | --- | --- |
 | `/model` | pick a model |
-| `/mode <name>` | set autonomy mode (`auto` / `guided` / `free`) |
-| `/pause`, `/resume` | stop the agent before its next tool call, and continue |
+| `/mode <name>` | autonomy mode (`auto` / `guided` / `free`) |
+| `/pause`, `/resume` | stop before the next tool call, and continue |
 | `/status` | engagement dashboard |
 | `/targets`, `/services` | discovered hosts, services |
 | `/vulns`, `/creds`, `/matrix` | findings, credentials, access graph |
 | `/tools`, `/sessions` | host tools, recent sessions |
-| `/help`, `/clear`, `/quit` | help, clear transcript, exit |
+| `/help`, `/clear`, `/quit` | help, clear, exit |
 
 | Key | Action |
 | --- | --- |
 | `↑` / `↓` | walk back through submitted instructions |
 | `PageUp` / `PageDown` | scroll the transcript |
 | `Tab` | focus the session sidebar |
-| `Ctrl-B` | show or hide the sidebar |
-| `Ctrl-T` | show or hide the model's thinking |
+| `Ctrl-B` / `Ctrl-T` | toggle sidebar / model thinking |
 | `Ctrl-L` | clear the transcript |
 | `Ctrl-C` | cancel the running turn; quit when idle |
 | `Ctrl-Q` | quit |

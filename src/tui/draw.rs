@@ -40,12 +40,21 @@ impl App {
             ])
             .split(main);
 
-        self.draw_transcript(f, chunks[0]);
+        self.draw_pane(f, chunks[0]);
         if self.palette.open {
             self.draw_palette(f, chunks[1]);
         }
         self.draw_input(f, chunks[2]);
         self.draw_status(f, chunks[3]);
+    }
+
+    fn draw_pane(&mut self, f: &mut ratatui::Frame<'_>, area: Rect) {
+        if self.transcript.is_empty() && self.current_stream.is_empty() && self.thinking.is_empty()
+        {
+            self.draw_welcome(f, area);
+            return;
+        }
+        self.draw_transcript(f, area);
     }
 
     fn draw_sidebar(&mut self, f: &mut ratatui::Frame<'_>, area: Rect) {
@@ -109,7 +118,7 @@ impl App {
             .collect();
 
         let para = Paragraph::new(Text::from(lines))
-            .style(Style::default().bg(theme::BG_ELEMENT))
+            .style(Style::default().bg(theme::PANEL_BG))
             .block(
                 Block::default()
                     .borders(Borders::ALL)
@@ -126,18 +135,39 @@ impl App {
     }
 
     fn draw_input(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
-        let para = Paragraph::new(self.input.as_str())
+        let border = if self.busy {
+            theme::BORDER
+        } else {
+            theme::BORDER_ACTIVE
+        };
+        let body: Text = if self.input.is_empty() {
+            Text::from(Line::from(vec![
+                Span::styled("  ❯ ", Style::default().fg(theme::ACCENT)),
+                Span::styled(
+                    "ask about a target, or type / for commands",
+                    Style::default().fg(theme::TEXT_DIM),
+                ),
+            ]))
+        } else {
+            let mut spans = vec![Span::styled("  ❯ ", Style::default().fg(theme::ACCENT))];
+            spans.push(Span::styled(
+                self.input.clone(),
+                Style::default().fg(theme::TEXT),
+            ));
+            Text::from(Line::from(spans))
+        };
+        let para = Paragraph::new(body)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
-                    .border_style(Style::default().fg(theme::BORDER_ACTIVE))
+                    .border_style(Style::default().fg(border))
                     .title(Span::styled(
                         " instruction ",
                         Style::default().fg(theme::INTERACTIVE),
                     )),
             )
-            .style(Style::default().fg(theme::TEXT))
+            .style(Style::default().bg(theme::PANEL_BG))
             .wrap(Wrap { trim: false });
         f.render_widget(para, area);
     }
@@ -147,22 +177,30 @@ impl App {
         let mut spans = vec![
             Span::styled(
                 format!(" {} ", self.model),
-                Style::default().fg(theme::BG).bg(theme::ACCENT),
+                Style::default()
+                    .fg(theme::BG)
+                    .bg(theme::ACCENT)
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::raw(" "),
+            Span::styled(
+                format!("{} ", self.mode.as_str()),
+                Style::default().fg(theme::INTERACTIVE),
+            ),
+            Span::styled("· ", Style::default().fg(theme::TEXT_DIM)),
         ];
         if self.busy {
             spans.extend(self.shimmer(&format!("{} working…  Ctrl-C cancel", self.spinner())));
         } else {
             spans.push(Span::styled(
-                self.status.clone(),
+                "ready — Enter send  / commands",
                 Style::default().fg(theme::TEXT_MUTED),
             ));
         }
         let left = Line::from(spans);
         let right = Line::from(Span::styled(
-            format!("{} tok ", tokens),
-            Style::default().fg(theme::TEXT_MUTED),
+            format!("{tokens} tok "),
+            Style::default().fg(theme::TEXT_DIM),
         ))
         .alignment(Alignment::Right);
         f.render_widget(Paragraph::new(Text::from(vec![left])), area);

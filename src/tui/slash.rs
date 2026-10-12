@@ -32,27 +32,29 @@ impl App {
                 self.status = "cleared".into();
             }
             command::Action::ShowHelp => {
+                self.transcript.push(Line2::Info("commands".into()));
                 for c in command::COMMANDS {
                     self.transcript
-                        .push(Line2::Info(format!("  /{:<9} {}", c.name, c.desc)));
+                        .push(Line2::Info(format!("  /{:<10}  {}", c.name, c.desc)));
                 }
+                self.transcript.push(Line2::Info(String::new()));
+                self.transcript.push(Line2::Info("keys".into()));
                 for k in [
-                    "Enter send",
-                    "↑/↓ history",
-                    "Ctrl-U clear input",
-                    "PgUp/PgDn scroll",
-                    "Home/End top/newest",
-                    "Tab sidebar",
-                    "sidebar: click or ↑↓ then Enter to resume",
-                    "sidebar: d or Delete deletes a session",
-                    "Ctrl-B hide sidebar",
-                    "Ctrl-T thinking",
-                    "Ctrl-L clear transcript",
-                    "F2 copy",
-                    "Ctrl-C cancel turn / quit",
-                    "Ctrl-Q quit",
+                    "Enter            send",
+                    "↑/↓              history",
+                    "Ctrl-U           clear input",
+                    "PgUp/PgDn        scroll",
+                    "Home/End         top / newest",
+                    "Tab, Ctrl-B      sidebar / hide",
+                    "↑↓, Enter        resume (focus sidebar)",
+                    "d, Delete        delete session",
+                    "Ctrl-T           toggle thinking",
+                    "Ctrl-L           clear transcript",
+                    "F2               copy transcript",
+                    "Ctrl-C           cancel turn / quit",
+                    "Ctrl-Q           quit",
                 ] {
-                    self.transcript.push(Line2::Info(format!("  key: {k}")));
+                    self.transcript.push(Line2::Info(format!("  {k}")));
                 }
                 self.status = "help".into();
             }
@@ -61,39 +63,27 @@ impl App {
                 self.status = "tools".into();
             }
             command::Action::Status => {
-                for line in describe_dashboard(&self.shared_session) {
-                    self.transcript.push(Line2::Info(line));
-                }
+                self.push_panel(describe_dashboard(&self.shared_session));
                 self.status = "status".into();
             }
             command::Action::Targets => {
-                for line in describe_targets(&self.shared_session) {
-                    self.transcript.push(Line2::Info(line));
-                }
+                self.push_panel(describe_targets(&self.shared_session));
                 self.status = "targets".into();
             }
             command::Action::Services => {
-                for line in describe_services(&self.shared_session) {
-                    self.transcript.push(Line2::Info(line));
-                }
+                self.push_panel(describe_services(&self.shared_session));
                 self.status = "services".into();
             }
             command::Action::Matrix => {
-                for line in describe_matrix(&self.shared_session) {
-                    self.transcript.push(Line2::Info(line));
-                }
+                self.push_panel(describe_matrix(&self.shared_session));
                 self.status = "matrix".into();
             }
             command::Action::Vulns => {
-                for line in describe_vulns(&self.shared_session) {
-                    self.transcript.push(Line2::Info(line));
-                }
+                self.push_panel(describe_vulns(&self.shared_session));
                 self.status = "vulns".into();
             }
             command::Action::Creds => {
-                for line in describe_creds(&self.shared_session) {
-                    self.transcript.push(Line2::Info(line));
-                }
+                self.push_panel(describe_creds(&self.shared_session));
                 self.status = "creds".into();
             }
             command::Action::Pause => {
@@ -149,6 +139,17 @@ impl App {
             }
         }
         self.auto_scroll = true;
+    }
+
+    /// Push a panel's lines, rendering the first as a section heading.
+    fn push_panel(&mut self, lines: Vec<String>) {
+        let mut it = lines.into_iter();
+        if let Some(head) = it.next() {
+            self.transcript.push(Line2::Heading(head));
+        }
+        for line in it {
+            self.transcript.push(Line2::Info(line));
+        }
     }
 
     /// Rebuild the shared client for a newly chosen model name.

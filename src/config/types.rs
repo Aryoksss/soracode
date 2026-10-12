@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 /// Where the model lives and how to talk to it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmConfig {
-    /// OpenAI-compatible endpoint, e.g. `https://9router.example/v1`.
+    /// OpenAI-compatible endpoint, e.g. `https://example.example/v1`.
     pub base_url: String,
     /// Bearer token.
     pub api_key: String,
@@ -154,7 +154,7 @@ pub(super) fn default_context_budget() -> usize {
 impl Default for LlmConfig {
     fn default() -> Self {
         Self {
-            base_url: "https://9router.aryoks.tech/v1".into(),
+            base_url: "https://your-endpoint.example.com/v1".into(),
             api_key: String::new(),
             model: "gh/gpt-4.1".into(),
             max_tokens: default_max_tokens(),

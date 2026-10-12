@@ -146,16 +146,15 @@ fn starter_file_is_valid_jsonc_and_matches_the_opencode_shape() {
     let cfg = crate::config::Config::load_with_models(Some(&path)).unwrap();
     let _ = std::fs::remove_dir_all(&dir);
 
-    let provider = cfg.providers.get("9router").expect("router provider");
+    let provider = cfg.providers.get("main").expect("placeholder provider");
     assert_eq!(
         provider.base_url,
         std::env::var("SORACODE_BASE_URL")
-            .unwrap_or_else(|_| "https://9router.aryoks.tech/v1".into())
+            .unwrap_or_else(|_| "https://your-endpoint.example.com/v1".into())
     );
-    assert!(cfg.models.contains_key("9router/gh/gpt-4.1"));
-    assert!(cfg.models.contains_key("9router/kr/deepseek-3.2"));
-    let m = &cfg.models["9router/gh/gpt-4.1"];
-    assert_eq!(m.provider, "9router");
+    assert!(cfg.models.contains_key("main/<model-id>"));
+    let m = &cfg.models["main/<model-id>"];
+    assert_eq!(m.provider, "main");
     assert_eq!(m.max_tokens, Some(16384));
 }
 

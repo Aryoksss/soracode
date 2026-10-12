@@ -62,7 +62,7 @@ impl Wire {
 /// An endpoint plus credentials, referenced by name.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Provider {
-    /// OpenAI-compatible base URL, e.g. `https://9router.example/v1`.
+    /// OpenAI-compatible base URL, e.g. `https://example.example/v1`.
     pub base_url: String,
     /// Request/response dialect; defaults to OpenAI-compatible.
     #[serde(default)]

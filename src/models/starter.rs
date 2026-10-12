@@ -14,41 +14,36 @@ pub fn models_path() -> std::path::PathBuf {
 /// The shape matches OpenCode's `provider`/`models` layout, so an operator who
 /// already knows that format can point soracode at the same endpoints. Comments
 /// and trailing commas are allowed, and `{env:VAR}` keeps keys out of the file.
+/// The endpoint is a placeholder the operator replaces with their own.
 #[must_use]
 pub fn starter_models_jsonc() -> String {
-    let router = std::env::var("SORACODE_BASE_URL")
-        .unwrap_or_else(|_| "https://9router.aryoks.tech/v1".to_string());
+    let endpoint = std::env::var("SORACODE_BASE_URL")
+        .unwrap_or_else(|_| "https://your-endpoint.example.com/v1".to_string());
     format!(
         r#"{{
   // soracode models — OpenCode-compatible layout.
   //
-  // Switch models with `-m <provider>/<model-id>`, or set `"model"` below.
+  // Fill in `baseURL` and the `models` below, then export the key.
+  // Switch models with `-m <provider>/<model-id>`, or set `"model"`.
   // List what is configured with `soracode --models`.
   //
   // A provider is an endpoint plus a key. Each entry under `models` becomes a
   // selectable model named `<provider>/<model-id>`. Add as many as you like;
   // nothing else in the config changes.
 
-  "model": "9router/gh/gpt-4.1",
+  "model": "main/<model-id>",
 
   "provider": {{
-    "9router": {{
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "9Router",
+    "main": {{
       "options": {{
-        "baseURL": "{router}",
+        "baseURL": "{endpoint}",
         // Read the key from the environment so it never lands in this file.
-        "apiKey": "{{env:NINEROUTER_API_KEY}}"
+        "apiKey": "{{env:PROVIDER_API_KEY}}"
       }},
       "models": {{
-        "gh/gpt-4.1": {{
-          "name": "GPT-4.1",
+        "<model-id>": {{
+          "name": "My Model",
           "limit": {{ "output": 16384 }}
-        }},
-        "kr/deepseek-3.2": {{
-          "name": "DeepSeek 3.2",
-          "limit": {{ "output": 32768 }},
-          "temperature": 0.2
         }}
       }}
     }}

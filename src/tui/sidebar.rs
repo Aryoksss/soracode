@@ -33,8 +33,8 @@ pub(super) fn draw(app: &mut App, f: &mut ratatui::Frame<'_>, area: Rect) {
     app.sidebar_area = area;
     let lines: Vec<Line> = if app.sessions.is_empty() {
         vec![Line::from(Span::styled(
-            " no recent sessions ",
-            Style::default().fg(theme::TEXT_MUTED),
+            "  no recent sessions ",
+            Style::default().fg(theme::TEXT_DIM),
         ))]
     } else {
         app.sessions
@@ -42,36 +42,55 @@ pub(super) fn draw(app: &mut App, f: &mut ratatui::Frame<'_>, area: Rect) {
             .enumerate()
             .map(|(i, (id, summary))| {
                 let selected = i == app.sidebar_index;
-                let style = if selected {
-                    Style::default()
-                        .fg(theme::INTERACTIVE)
-                        .bg(theme::SELECTION_BG)
-                        .add_modifier(Modifier::BOLD)
+                let (bg, marker_fg, id_fg, sum_fg) = if selected {
+                    (
+                        theme::SELECTION_BG,
+                        theme::ACCENT,
+                        theme::TEXT,
+                        theme::TEXT_MUTED,
+                    )
                 } else {
-                    Style::default().fg(theme::TEXT)
+                    (
+                        theme::PANEL_BG,
+                        theme::PANEL_BG,
+                        theme::TEXT,
+                        theme::TEXT_DIM,
+                    )
                 };
                 let marker = if selected { "▌" } else { " " };
-                let name = format!("{} {}", &id[..id.len().min(8)], shorten(summary));
-                Line::from(Span::styled(
-                    format!("{marker} {}", truncate(&name, 26)),
-                    style,
-                ))
+                let short = &id[..id.len().min(8)];
+                let name = format!("{} ", shorten(summary));
+                Line::from(vec![
+                    Span::styled(format!("{marker} "), Style::default().fg(marker_fg).bg(bg)),
+                    Span::styled(
+                        short,
+                        Style::default()
+                            .fg(id_fg)
+                            .bg(bg)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        format!(" {}", truncate(&name, 18)),
+                        Style::default().fg(sum_fg).bg(bg),
+                    ),
+                ])
             })
             .collect()
     };
 
-    let border = if app.sidebar_focus {
-        theme::INTERACTIVE
+    let (border, title) = if app.sidebar_focus {
+        (
+            theme::INTERACTIVE,
+            " sessions  ↑↓  ⏎ resume  d delete ".to_string(),
+        )
     } else {
-        theme::BORDER
-    };
-    let title = if app.sidebar_focus {
-        " sessions — Enter resume · d delete "
-    } else {
-        " sessions "
+        (
+            theme::BORDER,
+            format!(" sessions · {} ", app.sessions.len()),
+        )
     };
     let para = Paragraph::new(Text::from(lines))
-        .style(Style::default().bg(theme::BG_ELEMENT))
+        .style(Style::default().bg(theme::PANEL_BG))
         .block(
             Block::default()
                 .borders(Borders::ALL)
@@ -118,6 +137,7 @@ impl App {
         let session = Session::open(&self.db_path, Some(&id)).ok()?;
         self.transcript = rebuild(&session);
         *self.shared_session.lock().unwrap() = Arc::new(session);
+        self.session_id = id.clone();
         self.sessions = load_sessions(&self.cfg);
         self.scroll = 0;
         self.auto_scroll = true;

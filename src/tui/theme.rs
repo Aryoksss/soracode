@@ -1,14 +1,50 @@
+//! Central colour palette for the whole TUI.
+//!
+//! Kept in one place so a "theme" is a single file rather than a colour literal
+//! scattered through the drawing code. The base is a near-black canvas with a
+//! violet accent; status colours (success/error/warning) sit on top.
+
 use ratatui::style::Color;
 
-pub(super) const BG: Color = Color::Rgb(10, 10, 10);
-pub(super) const BG_ELEMENT: Color = Color::Rgb(30, 30, 30);
-pub(super) const TEXT: Color = Color::Rgb(238, 238, 238);
-pub(super) const TEXT_MUTED: Color = Color::Rgb(128, 128, 128);
-pub(super) const ACCENT: Color = Color::Rgb(157, 124, 216);
+// ── canvas ─────────────────────────────────────────────────────────────────
+/// The window background.
+pub(super) const BG: Color = Color::Rgb(17, 17, 22);
+/// A raised surface: panels, palettes, the input box.
+pub(super) const PANEL_BG: Color = Color::Rgb(24, 24, 31);
+/// The selected row inside a list.
+pub(super) const SELECTION_BG: Color = Color::Rgb(45, 42, 62);
+
+// ── text ───────────────────────────────────────────────────────────────────
+/// Primary text.
+pub(super) const TEXT: Color = Color::Rgb(232, 230, 236);
+/// Secondary text: labels, hints, separators.
+pub(super) const TEXT_MUTED: Color = Color::Rgb(130, 127, 145);
+/// Tertiary text: barely there, for rule lines and trailing info.
+pub(super) const TEXT_DIM: Color = Color::Rgb(80, 79, 90);
+
+// ── accent ─────────────────────────────────────────────────────────────────
+/// The brand accent, used for titles and the active focus ring.
+pub(super) const ACCENT: Color = Color::Rgb(167, 139, 250);
+/// The interactive/secondary accent (warm), used for input and movement.
 pub(super) const INTERACTIVE: Color = Color::Rgb(250, 178, 131);
-pub(super) const BORDER: Color = Color::Rgb(72, 72, 72);
-pub(super) const BORDER_ACTIVE: Color = Color::Rgb(250, 178, 131);
-pub(super) const SUCCESS: Color = Color::Rgb(127, 216, 143);
-pub(super) const ERROR: Color = Color::Rgb(224, 108, 117);
-pub(super) const WARNING: Color = Color::Rgb(245, 167, 66);
-pub(super) const SELECTION_BG: Color = Color::Rgb(76, 76, 76);
+
+// ── lines ──────────────────────────────────────────────────────────────────
+/// Idle borders.
+pub(super) const BORDER: Color = Color::Rgb(48, 48, 58);
+/// The border of the pane the user is working in.
+pub(super) const BORDER_ACTIVE: Color = Color::Rgb(167, 139, 250);
+
+// ── status ─────────────────────────────────────────────────────────────────
+pub(super) const SUCCESS: Color = Color::Rgb(134, 222, 150);
+pub(super) const ERROR: Color = Color::Rgb(255, 123, 137);
+pub(super) const WARNING: Color = Color::Rgb(247, 178, 103);
+/// Informational callouts (paths, IDs, secondary structure).
+pub(super) const INFO: Color = Color::Rgb(122, 194, 240);
+
+// ── roles ──────────────────────────────────────────────────────────────────
+/// The user's own message.
+pub(super) const ROLE_USER: Color = Color::Rgb(167, 139, 250);
+/// The assistant's reply.
+pub(super) const ROLE_ASSISTANT: Color = Color::Rgb(134, 222, 150);
+/// A tool call or its result.
+pub(super) const ROLE_TOOL: Color = Color::Rgb(122, 194, 240);
