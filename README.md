@@ -1,14 +1,31 @@
 # soracode
 
-An operator-controlled security agent. One static binary, no runtime to install.
+A security agent that works from your terminal. You describe a target, it
+plans the work, runs the tools, and remembers everything it learns — so you
+stop losing findings in scrollback.
 
-Point it at a target and it plans, runs tools, and keeps what it finds — hosts,
-services, vulns, creds, footholds — in an engagement state shared across every
-task and saved between runs.
+One file to install. Nothing else to set up.
+
+## What it does
+
+You give it a job — "scan example.com", "enumerate the domain controller",
+"check this login form". It decides which tools to run, reads their output,
+and keeps what matters:
+
+- hosts and open services
+- vulnerabilities, by severity
+- credentials it finds
+- footholds and how they connect
+
+That state is shared across everything you ask it to do and is saved between
+runs, so a port the scanner found is ready when you ask about the services on
+it a minute later.
+
+Findings stay structured — not buried in a wall of text.
 
 ## Install
 
-Needs [Rust](https://rustup.rs).
+You only need [Rust](https://rustup.rs) once.
 
 ```sh
 cargo build --release
@@ -16,81 +33,109 @@ install -m755 target/release/soracode ~/.local/bin/soracode
 soracode --version
 ```
 
-## Setup
+## First run
 
-soracode talks to any OpenAI-compatible endpoint. Write a starting config, then
-fill in your provider:
+Create a starting config:
 
 ```sh
-soracode --init-models     # writes ~/.config/soracode/soracode.jsonc
+soracode --init-models
 ```
 
-```jsonc
-{
-  "model": "<provider>/<model-id>",
-
-  "provider": {
-    "<provider>": {
-      "options": {
-        "baseURL": "https://your-endpoint.example.com/v1",
-        "apiKey": "{env:PROVIDER_API_KEY}"
-      },
-      "models": {
-        "<model-id>": { "name": "My Model" }
-      }
-    }
-  }
-}
-```
-
-Never write a key into the file — use `{env:VAR}` and export it instead, so the
-config stays safe to share.
+Open the file it writes (`~/.config/soracode/soracode.jsonc`) and point it at
+a model — any service that speaks the OpenAI format works, including a local
+one. Put your key in an environment variable and reference it, so the file
+itself stays safe to share:
 
 ```sh
 export PROVIDER_API_KEY=sk-...
 soracode
 ```
 
-That opens the interactive TUI. For a one-off task without the UI:
+If you'd rather skip the UI for one quick job:
 
 ```sh
 soracode -n -i "scan example.com and report open ports"
 ```
 
-## Providers
+## Using it
 
-OpenAI-compatible is the default and works with any router or local server.
-Anthropic and Gemini are supported directly:
+Type what you want in plain language and press `Enter`.
 
-```jsonc
-"anthropic": {
-  "options": { "baseURL": "https://api.anthropic.com/v1", "wire": "anthropic",
-               "apiKey": "{env:ANTHROPIC_API_KEY}" },
-  "models": { "claude-sonnet-4-5": { "name": "Claude Sonnet 4.5" } }
-}
+```
+> scan 10.10.10.5 and tell me what's exposed
 ```
 
-Use `"wire": "google"` for Gemini. A local server is the same block with
-`"baseURL": "http://127.0.0.1:1234/v1"`.
+The agent shows its plan, the tools it runs, and what it found as it goes.
 
-## Models
+While it's working you can:
 
-Switch with a single flag, or `/model` inside the TUI:
+- press `Esc` to stop the current job
+- keep typing the next instruction — it waits in line and runs when the
+  current job finishes
+- press `/` to see the built-in commands
+
+Everything is saved as it happens, so you can close the terminal and pick up
+later.
+
+### A few useful commands
+
+| Type this | To |
+| --- | --- |
+| `/status` | see the whole engagement at a glance |
+| `/targets`, `/services` | what hosts and ports you've found |
+| `/vulns`, `/creds` | findings and credentials |
+| `/model` | switch which model you're using |
+| `/mode auto` / `guided` / `free` | how much it stops to ask |
+| `/compact` | trim old history when the conversation gets long |
+| `/undo` | take back your last message |
+| `/export` | save the whole session to a file |
+| `/help` | see everything, including keys |
+| `/quit` | exit |
+
+### Handy keys
+
+| Key | Does |
+| --- | --- |
+| `Enter` | send |
+| `Shift-Enter` | new line |
+| `Up` / `Down` | go back through what you've typed |
+| `Esc` | stop the running job |
+| `Tab` | open the session list |
+| `Ctrl-Y` | copy the last answer to the clipboard |
+| `Ctrl-C` | stop the job; press again when idle to quit |
+
+To copy text, just drag and select like anywhere else — soracode never
+grabs the mouse drag, so your terminal's normal copy works.
+
+## Sessions
+
+Every job is saved, so an engagement survives a crash or a closed terminal.
 
 ```sh
-soracode -m <provider>/<model-id>
+soracode --sessions          # list recent sessions
+soracode --resume a0a3cb94   # pick up where you left off
+soracode --continue          # resume the newest one
 ```
 
-Add a model by adding a key under `models`; its selectable name is
-`provider/model-id`. `soracode --models` lists everything configured.
+Inside the app, press `Tab` to see your sessions.
 
-## MCP servers
+## How much it decides on its own
 
-soracode speaks [Model Context Protocol](https://modelcontextprotocol.io) and
-exposes a server's tools to the agent. A server named `burp` turns its
-`scan_target` tool into `mcp_burp_scan_target`.
+| Mode | Behaviour |
+| --- | --- |
+| `auto` | runs the plan without stopping (the default) |
+| `guided` | shows the plan and waits for your go-ahead first |
+| `free` | plain assistant, no engagement tracking — good for one-off scripting |
 
-Two transports are supported. Use `command` for a local stdio server:
+Start in a mode with `--mode`, or change it any time with `/mode`.
+
+## Connecting extra tools (MCP)
+
+soracode can use tools from other programs through
+[MCP](https://modelcontextprotocol.io). A server named `burp` turns its
+`scan_target` action into `mcp_burp_scan_target` for the agent.
+
+Add a server to your config. For a local program:
 
 ```jsonc
 "mcp": {
@@ -101,8 +146,7 @@ Two transports are supported. Use `command` for a local stdio server:
 }
 ```
 
-Use `url` for a remote SSE/HTTP endpoint — for example the Burp Suite MCP
-extension, which listens on `http://localhost:9876`:
+For one that's already running at a URL — like the Burp Suite MCP extension:
 
 ```jsonc
 "mcp": {
@@ -110,105 +154,18 @@ extension, which listens on `http://localhost:9876`:
 }
 ```
 
-The same block works in `soracode.models.toml`:
-
-```toml
-[mcp.burp]
-url = "http://localhost:9876"
-```
-
-When both `command` and `url` are set, `url` wins. Servers start once per
-session. One that fails to launch is skipped, not fatal; `"disabled": true`
-turns one off without deleting it.
-
-## Tools
-
-The agent runs shell commands and parses the output of common security tools
-into the engagement state, so findings are structured instead of buried in
-scrollback.
-
-| | |
-| --- | --- |
-| **Recon** | `nmap_parse`, `nuclei_parse`, `gobuster_parse` |
-| **Web** | `xss_detect`, `jwt_analyze`, `http` |
-| **Internal** | `cme_parse`, `bloodhound_parse`, `sqlmap_parse` |
-| **Engagement** | `state_update`, `state_query`, `attack_path_suggest`, `report_gen` |
-| **Filesystem** | `read`, `write`, `edit`, `list`, `glob`, `grep` |
-| **Other** | `shell`, `note`, `recall`, `tools`, `subagent`, `skill` |
-
-The engagement state lives in the same SQLite database as the transcript, so it
-survives a restart and is shared by every task: a port the scanner finds is
-visible to the enumerator immediately.
+If a server won't start, soracode skips it and carries on. Set
+`"disabled": true` to turn one off without deleting it.
 
 ## Skills
 
-A skill is a Markdown pack that teaches one technique in depth. Packs are
-listed in the prompt and loaded only when needed, so a deep library never
-bloats the context window. Six ship built in:
+A skill is a short guide that teaches the agent one technique in depth. They
+load only when they're needed, so a big library never slows you down. Six
+come built in: Active Directory attacks, cloud attacks, Kerberos, Linux
+privilege escalation, SSRF, and web attacks.
 
-```
-ad-attack  cloud-attack  kerberos  linux-privesc  ssrf  web-attack
-```
-
-Drop your own `*.md` files into `~/.config/soracode/skills/` or
-`<workspace>/.soracode/skills/` and they appear on the next run.
-
-## Sessions
-
-Every instruction, reply, and tool result is saved as it happens, so an
-engagement survives a crash or a closed terminal.
-
-```sh
-soracode --sessions          # list recent sessions
-soracode --resume a0a3cb94   # resume by id
-soracode --continue          # resume the newest
-```
-
-Press `Tab` to open the session list, then delete a session with `d`
-(or `Delete`).
-
-## Using the TUI
-
-Type an instruction and press `Enter`. Press `/` to see commands. The session
-list is hidden by default — press `Tab` to open it. Drag to select text and
-copy it as usual; a drag is never captured by the app.
-
-| Command | Action |
-| --- | --- |
-| `/model` | pick a model |
-| `/mode <name>` | autonomy mode (`auto` / `guided` / `free`) |
-| `/pause`, `/resume` | stop before the next tool call, and continue |
-| `/compact` | trim older turns before the next message, to free context |
-| `/undo` | remove the last turn from the session and the view |
-| `/export [path]` | save the whole session to a Markdown file |
-| `/status` | engagement dashboard |
-| `/targets`, `/services` | discovered hosts, services |
-| `/vulns`, `/creds`, `/matrix` | findings, credentials, access graph |
-| `/tools`, `/sessions` | host tools, recent sessions |
-| `/help`, `/clear`, `/quit` | help, clear, exit |
-
-| Key | Action |
-| --- | --- |
-| `Enter` | send; `Shift-Enter` or `Ctrl-J` for a new line |
-| `↑` / `↓` | walk back through submitted instructions |
-| `PageUp` / `PageDown` | scroll the transcript |
-| mouse wheel | scroll the transcript |
-| `Tab` | open the session list (resume with `⏎`) |
-| `Ctrl-B` / `Ctrl-T` | toggle sidebar / model thinking |
-| `Ctrl-Y` | copy the last reply to the terminal clipboard |
-| `Ctrl-L` | clear the transcript |
-| `Ctrl-C` | cancel the running turn; quit when idle |
-| `Ctrl-Q` | quit |
-
-## Autonomy modes
-
-| Mode | Behaviour |
-| --- | --- |
-| `auto` | plan, execute and record without stopping (default) |
-| `guided` | present a plan and wait for confirmation before state-changing actions |
-| `free` | no engagement bookkeeping — a plain assistant for one-off scripting |
-
-Set at startup with `--mode`, or at runtime with `/mode`.
+Add your own as `*.md` files in `~/.config/soracode/skills/` or
+`<your-project>/.soracode/skills/`.
 
 ## License
 
