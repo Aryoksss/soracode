@@ -29,6 +29,7 @@ pub struct Agent {
     messages: Vec<Message>,
     session: Arc<Session>,
     events: Option<UnboundedSender<AgentEvent>>,
+    pause: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl Agent {
@@ -83,6 +84,9 @@ impl Agent {
             );
             env.push_str(&crate::skills::catalogue(&spec.config.workspace));
             messages.push(Message::System { content: env });
+            messages.push(Message::System {
+                content: prompt::mode_block(spec.config.mode).to_string(),
+            });
 
             replay_history(&session, &mut messages);
         }
@@ -95,6 +99,7 @@ impl Agent {
             messages,
             session,
             events: spec.events,
+            pause: spec.pause,
         })
     }
 }

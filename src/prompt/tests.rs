@@ -1,6 +1,7 @@
 //! Tests for prompt construction and specialist role selection.
 
-use super::{for_role, specialist_preamble, SUBAGENT_PROMPT};
+use super::{for_role, mode_block, specialist_preamble, SUBAGENT_PROMPT};
+use crate::config::Mode;
 
 #[test]
 fn root_and_subagent_get_distinct_base_prompts() {
@@ -36,4 +37,15 @@ fn operating_prompt_teaches_engagement_state_use() {
     assert!(p.contains("nmap_parse"));
     assert!(p.contains("nuclei_parse"));
     assert!(p.contains("cme_parse"));
+}
+
+#[test]
+fn each_mode_has_distinct_guidance() {
+    let auto = mode_block(Mode::Auto);
+    let guided = mode_block(Mode::Guided);
+    let free = mode_block(Mode::Free);
+    assert_ne!(auto, guided);
+    assert_ne!(guided, free);
+    assert!(guided.contains("wait for the operator"));
+    assert!(free.contains("No engagement bookkeeping"));
 }

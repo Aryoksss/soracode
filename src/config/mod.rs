@@ -19,7 +19,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-pub use self::types::{AgentConfig, LlmConfig};
+pub use self::types::{AgentConfig, LlmConfig, Mode};
 
 /// Full soracode configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]

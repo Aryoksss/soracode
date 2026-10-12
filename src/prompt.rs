@@ -88,6 +88,33 @@ pub fn for_role(is_subagent: bool) -> &'static str {
     }
 }
 
+/// Autonomy guidance for the active [`crate::config::Mode`], injected as its
+/// own system message so the mode can change between turns without rewriting
+/// the base prompt.
+#[must_use]
+pub fn mode_block(mode: crate::config::Mode) -> &'static str {
+    use crate::config::Mode;
+    match mode {
+        Mode::Auto => {
+            "## Mode: auto\n\nFull autonomy. Carry each instruction through to completion — \
+             plan, execute, and record state — without stopping to ask for confirmation. The \
+             operator will interrupt if they want to change course."
+        }
+        Mode::Guided => {
+            "## Mode: guided\n\nBefore any exploit, payload, or state-changing action, stop and \
+             present a short plan: what you intend to run, against what, and what you expect. \
+             Then wait for the operator to confirm. Read-only reconnaissance and enumeration \
+             need no confirmation. When in doubt, ask — a pause costs a line, a wrong move costs \
+             the engagement."
+        }
+        Mode::Free => {
+            "## Mode: free\n\nNo engagement bookkeeping. Answer and script directly, as a \
+             senior engineer at a keyboard. Skip the shared engagement state unless the operator \
+             explicitly asks you to record something."
+        }
+    }
+}
+
 /// Specialist preamble for a named subagent role, or `None` for a plain task.
 ///
 /// The role narrows what a subagent optimises for; it never restricts scope,

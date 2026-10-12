@@ -36,6 +36,10 @@ pub struct Cli {
     #[arg(short = 'w', long = "workspace")]
     pub workspace: Option<PathBuf>,
 
+    /// Autonomy mode: auto (full, default), guided (confirm before acting), or free (no state).
+    #[arg(long = "mode")]
+    pub mode: Option<String>,
+
     /// Config file to load on top of the defaults.
     #[arg(short = 'c', long = "config")]
     pub config: Option<PathBuf>,

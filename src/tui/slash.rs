@@ -12,10 +12,13 @@ use crate::llm::Client;
 
 impl App {
     /// Execute a slash command by name.
-    pub(super) fn run_slash<F>(&mut self, name: &str, _on_submit: &mut F)
+    pub(super) fn run_slash<F>(&mut self, input: &str, _on_submit: &mut F)
     where
         F: FnMut(String, UnboundedSender<AgentEvent>) + Send + 'static,
     {
+        let mut parts = input.splitn(2, char::is_whitespace);
+        let name = parts.next().unwrap_or("");
+        let arg = parts.next().map(str::trim).unwrap_or("");
         let Some(cmd) = command::by_name(name) else {
             self.transcript.push(Line2::Error(format!(
                 "unknown command `/{name}` — type / for the list"
@@ -82,6 +85,35 @@ impl App {
                 }
                 self.status = "creds".into();
             }
+            command::Action::Pause => {
+                self.pause.store(true, std::sync::atomic::Ordering::Relaxed);
+                self.transcript.push(Line2::Info(
+                    "paused — the agent stops before its next tool call; /resume to continue"
+                        .into(),
+                ));
+                self.status = "paused".into();
+            }
+            command::Action::Resume => {
+                self.pause
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
+                self.transcript
+                    .push(Line2::Info("resumed — the agent may continue".into()));
+                self.status = "running".into();
+            }
+            command::Action::SetMode => match crate::config::Mode::parse(arg) {
+                Some(m) => {
+                    self.mode = m;
+                    self.transcript.push(Line2::Info(format!(
+                        "mode → {} (applies from the next instruction)",
+                        m.as_str()
+                    )));
+                    self.status = format!("mode {}", m.as_str());
+                }
+                None => self.transcript.push(Line2::Info(format!(
+                    "mode is {} — use /mode auto|guided|free",
+                    self.mode.as_str()
+                ))),
+            },
             command::Action::ShowSessions => {
                 for line in describe_sessions(&self.cfg.db_path) {
                     self.transcript.push(Line2::Info(line));

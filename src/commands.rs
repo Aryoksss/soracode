@@ -103,6 +103,7 @@ pub fn print_event(ev: AgentEvent) {
         AgentEvent::Error(m) => eprintln!("\x1b[31m{m}\x1b[0m"),
         AgentEvent::Done => {}
         AgentEvent::Cancelled => {}
+        AgentEvent::Paused => println!("\x1b[90mpaused\x1b[0m"),
     }
 }
 

@@ -49,6 +49,8 @@ pub enum AgentEvent {
     Error(String),
     /// The turn finished.
     Done,
+    /// The turn stopped because the operator paused the engagement.
+    Paused,
     /// The turn was cancelled by the operator.
     #[allow(dead_code)] // emitted by the TUI cancel path
     Cancelled,
@@ -82,4 +84,6 @@ pub struct AgentSpec {
     pub events: Option<UnboundedSender<AgentEvent>>,
     /// Bridge used by the `subagent` tool.
     pub spawner: Option<Arc<dyn Spawner>>,
+    /// Shared pause flag; when set, the loop stops before the next tool call.
+    pub pause: Arc<std::sync::atomic::AtomicBool>,
 }

@@ -76,6 +76,7 @@ impl Spawner for SubagentSpawner {
             session: self.session.clone(),
             events: self.events.clone(),
             spawner: Some(nested_spawner),
+            pause: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         };
 
         let mut agent = Agent::new(spec)?;

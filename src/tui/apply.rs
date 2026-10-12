@@ -58,6 +58,15 @@ impl App {
                 self.status = "cancelled".into();
                 self.auto_scroll = true;
             }
+            AgentEvent::Paused => {
+                self.flush_stream();
+                self.busy = false;
+                self.transcript.push(Line2::Info(
+                    "paused — /resume clears the pause, then send again to continue".into(),
+                ));
+                self.status = "paused".into();
+                self.auto_scroll = true;
+            }
         }
     }
 

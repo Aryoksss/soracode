@@ -164,3 +164,22 @@ fn cli_api_key_overrides_a_named_providers_key() {
     assert_eq!(r.api_key, "sk-cli");
     assert_eq!(r.base_url, "https://router.test/v1");
 }
+
+#[test]
+fn mode_parse_round_trips_every_variant() {
+    for m in [Mode::Auto, Mode::Guided, Mode::Free] {
+        assert_eq!(Mode::parse(m.as_str()), Some(m));
+    }
+}
+
+#[test]
+fn mode_parse_is_case_insensitive_and_trims() {
+    assert_eq!(Mode::parse("  Guided "), Some(Mode::Guided));
+    assert_eq!(Mode::parse("FREE"), Some(Mode::Free));
+    assert_eq!(Mode::parse("nope"), None);
+}
+
+#[test]
+fn default_mode_is_auto() {
+    assert_eq!(AgentConfig::default().mode, Mode::Auto);
+}

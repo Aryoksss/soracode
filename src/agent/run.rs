@@ -26,6 +26,10 @@ impl Agent {
         let mut final_text = String::new();
 
         loop {
+            if self.pause.load(std::sync::atomic::Ordering::Relaxed) {
+                self.emit(AgentEvent::Paused);
+                break;
+            }
             if turns >= self.config.max_turns {
                 self.emit(AgentEvent::Info(format!(
                     "reached max_turns ({})",

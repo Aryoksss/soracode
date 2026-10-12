@@ -12,6 +12,15 @@ use crate::llm::Client;
 use crate::session::Session;
 use crate::tui;
 
+/// Operator-controlled knobs that can change between turns.
+#[derive(Clone)]
+pub(crate) struct Runtime {
+    /// Shared pause flag the loop reads before each tool call.
+    pub pause: Arc<std::sync::atomic::AtomicBool>,
+    /// Autonomy mode.
+    pub mode: crate::config::Mode,
+}
+
 /// Build a fully wired agent for one instruction.
 pub(crate) fn build_agent(
     client: Client,
@@ -20,8 +29,11 @@ pub(crate) fn build_agent(
     events: Option<UnboundedSender<AgentEvent>>,
     depth: u32,
     is_subagent: bool,
+    rt: Runtime,
 ) -> Result<Agent> {
-    let agent_cfg = Arc::new(cfg.agent().clone());
+    let mut agent_cfg = cfg.agent().clone();
+    agent_cfg.mode = rt.mode;
+    let agent_cfg = Arc::new(agent_cfg);
     let spawner = Arc::new(SubagentSpawner::new(
         client.clone(),
         agent_cfg.clone(),
@@ -39,6 +51,7 @@ pub(crate) fn build_agent(
         session,
         events,
         spawner: Some(spawner),
+        pause: rt.pause,
     })
 }
 
@@ -58,7 +71,18 @@ pub(crate) async fn run_once(
         }
     });
 
-    let mut agent = build_agent(client, &cfg, session.clone(), Some(tx), 0, false)?;
+    let mut agent = build_agent(
+        client,
+        &cfg,
+        session.clone(),
+        Some(tx),
+        0,
+        false,
+        Runtime {
+            pause: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            mode: cfg.agent().mode,
+        },
+    )?;
     agent.run(&instruction).await?;
     agent.flush_notes()?;
 
@@ -78,6 +102,8 @@ pub(crate) fn run_tui(client: Client, cfg: Arc<Config>, session: Arc<Session>) -
     let cb_shared = shared.clone();
     let cb_client = client.clone();
     let cancel = app.cancel_notify();
+    let pause = app.pause_flag();
+    let mode = app.mode();
 
     app.run(move |instruction, tx| {
         let cfg = cb_cfg.clone();
@@ -85,9 +111,22 @@ pub(crate) fn run_tui(client: Client, cfg: Arc<Config>, session: Arc<Session>) -
         let client = cb_client.lock().expect("client mutex").clone();
         let tx2 = tx.clone();
         let cancel = cancel.clone();
+        let pause = pause.clone();
 
         tokio::spawn(async move {
-            match build_agent(client, &cfg, session.clone(), Some(tx.clone()), 0, false) {
+            let rt = Runtime {
+                pause: pause.clone(),
+                mode,
+            };
+            match build_agent(
+                client,
+                &cfg,
+                session.clone(),
+                Some(tx.clone()),
+                0,
+                false,
+                rt,
+            ) {
                 Ok(mut agent) => {
                     {
                         let turn = agent.run(&instruction);

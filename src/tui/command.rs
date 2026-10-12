@@ -17,6 +17,12 @@ pub enum Action {
     Creds,
     /// Render recent sessions into the transcript.
     ShowSessions,
+    /// Stop the agent before its next tool call.
+    Pause,
+    /// Clear the pause so the agent may continue.
+    Resume,
+    /// Switch the autonomy mode (auto/guided/free).
+    SetMode,
     /// Render the command list and key bindings into the transcript.
     ShowHelp,
     /// Clear the transcript pane.
@@ -71,6 +77,21 @@ pub const COMMANDS: &[Command] = &[
         name: "sessions",
         desc: "list recent sessions",
         action: Action::ShowSessions,
+    },
+    Command {
+        name: "pause",
+        desc: "stop the agent before its next tool call",
+        action: Action::Pause,
+    },
+    Command {
+        name: "resume",
+        desc: "clear the pause and let the agent continue",
+        action: Action::Resume,
+    },
+    Command {
+        name: "mode",
+        desc: "show or set the autonomy mode (auto|guided|free)",
+        action: Action::SetMode,
     },
     Command {
         name: "help",
@@ -129,12 +150,25 @@ mod tests {
 
     #[test]
     fn matching_accepts_prefix_with_and_without_slash() {
-        let bare = matching("mod");
-        let slashed = matching("/mod");
+        let bare = matching("model");
+        let slashed = matching("/model");
         assert_eq!(bare.len(), 1);
         assert_eq!(bare[0].name, "model");
         assert_eq!(slashed.len(), 1);
         assert_eq!(slashed[0].name, "model");
+    }
+
+    #[test]
+    fn matching_returns_every_prefix_candidate() {
+        let names: Vec<&str> = matching("mod").into_iter().map(|c| c.name).collect();
+        assert_eq!(names, vec!["model", "mode"]);
+    }
+
+    #[test]
+    fn pause_resume_and_mode_are_registered() {
+        assert_eq!(by_name("pause").map(|c| c.action), Some(Action::Pause));
+        assert_eq!(by_name("resume").map(|c| c.action), Some(Action::Resume));
+        assert_eq!(by_name("mode").map(|c| c.action), Some(Action::SetMode));
     }
 
     #[test]

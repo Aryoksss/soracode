@@ -91,6 +91,7 @@ impl Config {
         api_key: Option<String>,
         model: Option<String>,
         workspace: Option<PathBuf>,
+        mode: Option<crate::config::Mode>,
     ) {
         if let Some(v) = base_url {
             self.llm.base_url = v.clone();
@@ -105,6 +106,9 @@ impl Config {
         }
         if let Some(v) = workspace {
             self.agent.0.workspace = v;
+        }
+        if let Some(m) = mode {
+            self.agent.0.mode = m;
         }
     }
 

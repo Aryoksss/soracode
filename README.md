@@ -291,3 +291,40 @@ run can be picked up again without consulting `--sessions`:
 soracode: session 593f5ef0 — resume with: soracode --resume 593f5ef0
 ```
 
+### Modes and pause
+
+The agent runs in one of three autonomy modes, set with `--mode` at startup or
+`/mode <name>` at runtime:
+
+| Mode | Behaviour |
+| --- | --- |
+| `auto` | full autonomy — plan, execute and record without stopping (default) |
+| `guided` | the agent presents a plan and waits for confirmation before any exploit or state-changing action; read-only recon needs none |
+| `free` | no engagement bookkeeping — a plain assistant for one-off scripting |
+
+The mode is prompt-level guidance, not a hard gate: it shapes how the agent
+behaves without blocking an action the operator explicitly asked for.
+
+The operator can stop a running engagement at any time with `/pause`. The agent
+finishes the turn it is in and stops before the next tool call; `/resume` clears
+the pause so the next instruction runs normally.
+
+### Slash commands
+
+| Command | Action |
+| --- | --- |
+| `/model` | pick a model from the configured list |
+| `/mode <name>` | set the autonomy mode (`auto`/`guided`/`free`); no argument shows the current one |
+| `/pause` | stop the agent before its next tool call |
+| `/resume` | clear the pause |
+| `/status` | engagement dashboard: hosts, vulns, creds |
+| `/targets` | discovered hosts and services |
+| `/vulns` | recorded findings by severity |
+| `/creds` | discovered credentials |
+| `/tools` | tools detected on this host |
+| `/sessions` | list recent sessions |
+| `/help` | commands and key bindings |
+| `/clear` | clear the transcript |
+| `/quit` | exit |
+
+

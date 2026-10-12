@@ -37,9 +37,50 @@ pub(super) fn default_timeout() -> u64 {
     600
 }
 
+/// How much autonomy the agent is given over an engagement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum Mode {
+    /// Full autonomy: run tools, record state, keep going. The default.
+    #[default]
+    Auto,
+    /// Same tools, but the agent presents a plan and waits for the operator
+    /// before any exploit or state-changing action.
+    Guided,
+    /// No engagement-state ceremony: a plain assistant for one-off scripting
+    /// and questions.
+    Free,
+}
+
+impl Mode {
+    /// Parse a mode name, accepting the exact serde spelling.
+    #[must_use]
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "auto" => Some(Mode::Auto),
+            "guided" => Some(Mode::Guided),
+            "free" => Some(Mode::Free),
+            _ => None,
+        }
+    }
+
+    /// The lowercase name used in config, CLI and the prompt.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Mode::Auto => "auto",
+            Mode::Guided => "guided",
+            Mode::Free => "free",
+        }
+    }
+}
+
 /// Runtime behaviour of the agent loop.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
+    /// Autonomy mode for the engagement.
+    #[serde(default)]
+    pub mode: Mode,
     /// Maximum tool-calling turns per top-level instruction.
     #[serde(default = "default_max_turns")]
     pub max_turns: u32,
@@ -166,6 +207,7 @@ impl Default for LlmConfig {
 impl Default for AgentConfig {
     fn default() -> Self {
         Self {
+            mode: Mode::default(),
             max_turns: default_max_turns(),
             max_seconds: 0,
             workspace: default_workspace(),

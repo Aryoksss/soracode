@@ -1,5 +1,6 @@
 //! Interactive terminal UI.
 
+mod accessors;
 mod apply;
 mod command;
 mod draw;
@@ -104,6 +105,8 @@ pub struct App {
     db_path: std::path::PathBuf,
     mouse_capture: bool,
     cancel: Arc<tokio::sync::Notify>,
+    pause: Arc<std::sync::atomic::AtomicBool>,
+    mode: crate::config::Mode,
     sidebar_area: ratatui::layout::Rect,
 }
 
@@ -124,6 +127,7 @@ impl App {
     pub fn new(cfg: Arc<Config>, client: Arc<Mutex<Client>>, session: SharedSession) -> Self {
         let (tx, rx) = unbounded_channel();
         let model = cfg.active_model_name();
+        let mode = cfg.agent().mode;
         let sessions = load_sessions(&cfg);
         let db_path = cfg.db_path.clone();
         Self {
@@ -156,21 +160,10 @@ impl App {
             shared_session: session,
             db_path,
             cancel: Arc::new(tokio::sync::Notify::new()),
+            pause: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            mode,
             sidebar_area: ratatui::layout::Rect::default(),
         }
-    }
-
-    /// A handle to signal cancellation of the running turn.
-    #[must_use]
-    pub fn cancel_notify(&self) -> Arc<tokio::sync::Notify> {
-        self.cancel.clone()
-    }
-
-    /// Sender the agent should publish events to.
-    #[must_use]
-    #[allow(dead_code)] // retained for external event sources
-    pub fn sender(&self) -> UnboundedSender<AgentEvent> {
-        self.tx.clone()
     }
 
     /// Run the event loop until the user quits.

@@ -42,11 +42,22 @@ async fn run() -> Result<()> {
     let cli = Cli::parse();
 
     let mut cfg = Config::load_with_models(cli.config.as_deref())?;
+    let mode = match cli.mode.as_deref() {
+        None => None,
+        Some(s) => match config::Mode::parse(s) {
+            Some(m) => Some(m),
+            None => {
+                eprintln!("soracode: unknown --mode `{s}` — use auto|guided|free");
+                std::process::exit(2);
+            }
+        },
+    };
     cfg.apply_overrides(
         cli.base_url.clone(),
         cli.api_key.clone(),
         cli.model.clone(),
         cli.workspace.clone(),
+        mode,
     );
 
     if cli.init_models {
@@ -85,6 +96,7 @@ async fn run() -> Result<()> {
         );
         println!("{}", prompt::for_role(false));
         println!("{env}");
+        println!("{}", prompt::mode_block(cfg.agent().mode));
         print!("{}", skills::catalogue(&cfg.agent().workspace));
         return Ok(());
     }
