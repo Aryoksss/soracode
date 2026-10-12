@@ -24,6 +24,7 @@ impl Agent {
 
         let mut turns = 0u32;
         let mut final_text = String::new();
+        let started = std::time::Instant::now();
 
         loop {
             if self.pause.load(std::sync::atomic::Ordering::Relaxed) {
@@ -37,9 +38,18 @@ impl Agent {
                 )));
                 break;
             }
+            if self.config.max_seconds > 0 && started.elapsed().as_secs() >= self.config.max_seconds
+            {
+                self.emit(AgentEvent::Info(format!(
+                    "reached max_seconds ({})",
+                    self.config.max_seconds
+                )));
+                break;
+            }
             turns += 1;
 
             // Re-inject notes so the model always sees its own memory.
+            self.compact();
             let with_notes = self.with_notes();
 
             let tx_text = self.events.clone();
@@ -139,6 +149,22 @@ impl Agent {
         });
 
         output
+    }
+
+    /// Elide the oldest turns when the conversation exceeds the char budget.
+    ///
+    /// Only whole turns are dropped, and only from the second turn onward, so
+    /// the system prompts, the opening instruction, and the most recent turn
+    /// always survive, and an assistant tool call is never separated from the
+    /// tool result that answers it.
+    fn compact(&mut self) {
+        if let Some(elided) =
+            super::compact_messages(&mut self.messages, self.config.context_budget)
+        {
+            self.emit(AgentEvent::Info(format!(
+                "context compacted: elided {elided} earlier messages"
+            )));
+        }
     }
 
     /// Build the message list with the current notes appended.

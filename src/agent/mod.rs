@@ -1,5 +1,6 @@
 //! The agent loop: conversation state, tool dispatch, context compaction.
 
+mod compact;
 mod replay;
 mod run;
 mod spawner;
@@ -16,6 +17,7 @@ use crate::prompt;
 use crate::session::Session;
 use crate::tools::{Registry, ToolContext};
 
+pub use self::compact::compact_messages;
 pub use self::replay::replay_history;
 pub use self::spawner::SubagentSpawner;
 pub use self::types::{AgentEvent, AgentSpec, TurnResult};
@@ -63,7 +65,7 @@ impl Agent {
         let registry = Registry::standard(&ctx);
 
         let mut messages = vec![Message::System {
-            content: prompt::for_role(is_subagent).to_string(),
+            content: base_prompt(&spec.config, is_subagent),
         }];
 
         if let Some(preamble) = role.as_deref().and_then(prompt::specialist_preamble) {
@@ -102,6 +104,21 @@ impl Agent {
             pause: spec.pause,
         })
     }
+}
+
+/// The root system prompt: the operator's file if configured and readable,
+/// otherwise the built-in one. Subagents always keep their own prompt.
+fn base_prompt(config: &AgentConfig, is_subagent: bool) -> String {
+    if !is_subagent {
+        if let Some(path) = config.system_prompt_file.as_deref() {
+            if let Ok(text) = std::fs::read_to_string(path) {
+                if !text.trim().is_empty() {
+                    return text;
+                }
+            }
+        }
+    }
+    prompt::for_role(is_subagent).to_string()
 }
 
 #[cfg(test)]

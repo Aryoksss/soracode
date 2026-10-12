@@ -151,6 +151,8 @@ impl App {
                 max_tokens: r.max_tokens,
                 temperature: r.temperature,
                 timeout_secs: r.timeout_secs,
+                max_attempts: self.cfg.llm.max_attempts,
+                retry_backoff_ms: self.cfg.llm.retry_backoff_ms,
                 extra: r.headers.clone(),
             }) {
                 Ok(c) => {

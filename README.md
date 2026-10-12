@@ -190,6 +190,31 @@ observed error rather than silently dropped.
 A reasoning model whose answer arrives only in `reasoning_content` is read
 correctly; it is not treated as an empty reply.
 
+### Reliability and context
+
+A single request is retried automatically on a transport failure or a
+retryable status (`408`, `409`, `425`, `429`, and every `5xx`) with an
+exponential backoff, so a rate limit or a transient `503` no longer ends the
+turn. A failure after the response body has begun streaming is not retried,
+because the earlier chunks have already been shown.
+
+```jsonc
+"llm": {
+  "max_attempts": 4,        // total tries per request, including the first
+  "retry_backoff_ms": 500   // first wait; doubles each retry
+},
+"agent": {
+  "max_seconds": 900,       // wall-clock cap for one instruction, 0 = unlimited
+  "context_budget": 400000, // approximate conversation chars before compaction
+  "system_prompt_file": "/etc/soracode/prompt.md"  // replaces the built-in prompt
+}
+```
+
+When the conversation exceeds `context_budget`, the oldest whole turns are
+elided — never the system prompts, the opening instruction, the most recent
+turn, or an assistant tool call separated from its result. The elided span is
+replaced by a one-line marker so the model knows context was trimmed.
+
 ## Tools
 
 | Tool | Purpose |

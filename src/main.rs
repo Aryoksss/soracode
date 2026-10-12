@@ -164,6 +164,8 @@ async fn run() -> Result<()> {
         max_tokens: resolved.max_tokens,
         temperature: resolved.temperature,
         timeout_secs: resolved.timeout_secs,
+        max_attempts: cfg.llm.max_attempts,
+        retry_backoff_ms: cfg.llm.retry_backoff_ms,
         extra: resolved.headers.clone(),
     })?;
 

@@ -28,6 +28,10 @@ pub struct ClientConfig {
     pub temperature: f32,
     /// Request timeout in seconds.
     pub timeout_secs: u64,
+    /// Attempts per request, including the first.
+    pub max_attempts: u32,
+    /// Base delay in milliseconds for the exponential retry backoff.
+    pub retry_backoff_ms: u64,
     /// Extra headers sent on every request.
     pub extra: BTreeMap<String, String>,
 }
@@ -42,6 +46,8 @@ pub struct Client {
     model: String,
     max_tokens: u32,
     temperature: f32,
+    max_attempts: u32,
+    retry_backoff_ms: u64,
     extra: BTreeMap<String, String>,
 }
 
@@ -66,6 +72,8 @@ impl Client {
             model: cfg.model,
             max_tokens: cfg.max_tokens,
             temperature: cfg.temperature,
+            max_attempts: cfg.max_attempts.max(1),
+            retry_backoff_ms: cfg.retry_backoff_ms,
             extra: cfg.extra,
         })
     }
@@ -84,8 +92,14 @@ impl Client {
 
     /// Stream one assistant turn, invoking `on_event` for each incremental chunk.
     ///
+    /// The request is retried on a transport failure or a retryable HTTP status
+    /// (`408`, `409`, `425`, `429`, or any `5xx`) with an exponential backoff.
+    /// A failure after the response body has started streaming is not retried,
+    /// because earlier chunks have already been delivered to `on_event`.
+    ///
     /// # Errors
-    /// Returns [`Error::Llm`] on transport failure or a non-2xx response.
+    /// Returns [`Error::Llm`] once every attempt fails, or on a non-retryable
+    /// status.
     pub async fn stream_chat<F>(
         &self,
         messages: &[Message],
@@ -105,28 +119,7 @@ impl Client {
         );
         let url = format!("{}{}", self.base_url, out.path);
 
-        let mut req = self
-            .http
-            .post(&url)
-            .header("content-type", "application/json")
-            .header("accept", "text/event-stream")
-            .json(&out.body);
-        for (name, value) in wire::auth_headers(self.wire, &self.api_key) {
-            req = req.header(name, value);
-        }
-        for (k, v) in &self.extra {
-            req = req.header(k.as_str(), v.as_str());
-        }
-
-        let resp = req.send().await?;
-        let status = resp.status();
-        if !status.is_success() {
-            let text = resp.text().await.unwrap_or_default();
-            return Err(Error::Llm(format!(
-                "HTTP {status} from {url}: {}",
-                truncate(&text, 800)
-            )));
-        }
+        let resp = self.send_with_retry(&url, &out.body).await?;
 
         let mut asm = Assembler::new();
         let mut buf = String::new();
@@ -156,6 +149,76 @@ impl Client {
 
         Ok(asm.finish())
     }
+
+    /// Send one request, retrying a transport failure or a retryable status.
+    async fn send_with_retry(
+        &self,
+        url: &str,
+        body: &serde_json::Value,
+    ) -> Result<reqwest::Response> {
+        let mut attempt = 0u32;
+        loop {
+            attempt += 1;
+            let result = self.send_once(url, body).await;
+
+            match result {
+                Ok(resp) => return Ok(resp),
+                Err(_) if attempt < self.max_attempts => {
+                    let shift = attempt.min(8) - 1;
+                    let delay = self.retry_backoff_ms * 2u64.pow(shift);
+                    tokio::time::sleep(Duration::from_millis(delay)).await;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+    }
+
+    /// Send one request and classify the response as usable or retryable.
+    async fn send_once(&self, url: &str, body: &serde_json::Value) -> Result<reqwest::Response> {
+        let mut req = self
+            .http
+            .post(url)
+            .header("content-type", "application/json")
+            .header("accept", "text/event-stream")
+            .json(body);
+        for (name, value) in wire::auth_headers(self.wire, &self.api_key) {
+            req = req.header(name, value);
+        }
+        for (k, v) in &self.extra {
+            req = req.header(k.as_str(), v.as_str());
+        }
+
+        let resp = req.send().await.map_err(|e| {
+            Error::Llm(if e.is_connect() || e.is_timeout() || e.is_request() {
+                format!("transport: {e}")
+            } else {
+                format!("non-retryable transport: {e}")
+            })
+        })?;
+
+        let status = resp.status();
+        if status.is_success() {
+            return Ok(resp);
+        }
+
+        let code = status.as_u16();
+        let text = resp.text().await.unwrap_or_default();
+        if is_retryable_status(code) {
+            Err(Error::Llm(format!(
+                "retryable HTTP {status} from {url}: {}",
+                truncate(&text, 800)
+            )))
+        } else {
+            Err(Error::Llm(format!(
+                "HTTP {status} from {url}: {}",
+                truncate(&text, 800)
+            )))
+        }
+    }
+}
+
+fn is_retryable_status(code: u16) -> bool {
+    matches!(code, 408 | 409 | 425 | 429 | 500..=599)
 }
 
 fn truncate(s: &str, max: usize) -> String {
@@ -168,3 +231,6 @@ fn truncate(s: &str, max: usize) -> String {
     }
     format!("{}…", &s[..end])
 }
+
+#[cfg(test)]
+mod tests;

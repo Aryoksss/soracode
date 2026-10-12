@@ -13,6 +13,7 @@
 mod env;
 mod load;
 mod opencode;
+mod overlay;
 mod select;
 mod types;
 
