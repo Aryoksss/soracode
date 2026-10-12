@@ -5,7 +5,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph};
 
-use super::{theme, App, Line2, SharedSession};
+use super::{theme, App, SharedSession};
 use crate::config::Config;
 use crate::session::Session;
 
@@ -144,7 +144,7 @@ impl App {
     pub(super) fn resume_selected(&mut self) -> Option<String> {
         let (id, _, _) = self.sessions.get(self.sidebar_index)?.clone();
         let session = Session::open(&self.db_path, Some(&id)).ok()?;
-        self.transcript = rebuild(&session);
+        self.transcript = super::transcript::rebuild(&session);
         *self.shared_session.lock().unwrap() = Arc::new(session);
         self.session_id = id.clone();
         self.sessions = load_sessions(&self.cfg);
@@ -177,24 +177,4 @@ impl App {
             Err(e) => format!("delete failed: {e}"),
         }
     }
-}
-
-fn rebuild(session: &Session) -> Vec<Line2> {
-    let Ok(entries) = session.entries() else {
-        return Vec::new();
-    };
-    entries
-        .into_iter()
-        .filter_map(|e| {
-            let content = e.content;
-            if content.trim().is_empty() {
-                return None;
-            }
-            Some(match e.role.as_str() {
-                "user" => Line2::User(content),
-                "tool" => Line2::Tool(content),
-                _ => Line2::Assistant(content),
-            })
-        })
-        .collect()
 }

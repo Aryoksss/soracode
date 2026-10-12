@@ -136,9 +136,9 @@ impl App {
         let mode = cfg.agent().mode;
         let sessions = load_sessions(&cfg);
         let db_path = cfg.db_path.clone();
-        let session_id = session.lock().unwrap().id().to_string();
+        let (session_id, transcript) = crate::tui::transcript::load(&session);
         Self {
-            transcript: Vec::new(),
+            transcript,
             input: String::new(),
             history: Vec::new(),
             turn_marks: Vec::new(),

@@ -7,6 +7,33 @@ use ratatui::widgets::{
 
 use super::markdown::push_markdown;
 use super::{theme, App};
+use crate::session::Session;
+
+/// Rebuild the transcript pane from a session's entries, for resume.
+pub(crate) fn rebuild(session: &Session) -> Vec<Line2> {
+    let Ok(entries) = session.entries() else {
+        return Vec::new();
+    };
+    entries
+        .into_iter()
+        .filter_map(|e| {
+            let content = e.content;
+            if content.trim().is_empty() {
+                return None;
+            }
+            Some(match e.role.as_str() {
+                "user" => Line2::User(content),
+                "tool" => Line2::Tool(content),
+                _ => Line2::Assistant(content),
+            })
+        })
+        .collect()
+}
+
+pub(crate) fn load(session: &super::SharedSession) -> (String, Vec<Line2>) {
+    let guard = session.lock().unwrap();
+    (guard.id().to_string(), rebuild(&guard))
+}
 
 /// A line of conversation shown in the transcript pane.
 #[derive(Clone)]
@@ -218,3 +245,6 @@ impl App {
         f.render_stateful_widget(bar, area, &mut state);
     }
 }
+
+#[cfg(test)]
+mod tests;
