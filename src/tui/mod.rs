@@ -73,6 +73,8 @@ pub struct App {
     transcript: Vec<Line2>,
     input: String,
     history: Vec<String>,
+    /// Transcript length at each submit, so `/undo` can cut a whole turn.
+    turn_marks: Vec<usize>,
     history_at: Option<usize>,
     status: String,
     scroll: u16,
@@ -135,6 +137,7 @@ impl App {
             transcript: Vec::new(),
             input: String::new(),
             history: Vec::new(),
+            turn_marks: Vec::new(),
             history_at: None,
             status: "ready — Enter send  Tab sessions  ↑↓ history  F2 copy  / commands".into(),
             scroll: 0,

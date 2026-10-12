@@ -31,6 +31,8 @@ pub enum Action {
     SetMode,
     /// Render the command list and key bindings into the transcript.
     ShowHelp,
+    /// Remove the last submitted turn from the session and transcript.
+    Undo,
     /// Clear the transcript pane.
     Clear,
     /// Leave the TUI.
@@ -118,6 +120,11 @@ pub const COMMANDS: &[Command] = &[
         name: "help",
         desc: "show commands and key bindings",
         action: Action::ShowHelp,
+    },
+    Command {
+        name: "undo",
+        desc: "remove the last turn from the session and view",
+        action: Action::Undo,
     },
     Command {
         name: "clear",

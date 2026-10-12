@@ -26,6 +26,7 @@ impl App {
         };
         match cmd.action {
             command::Action::Quit => self.quit = true,
+            command::Action::Undo => self.undo(),
             command::Action::Clear => {
                 self.transcript.clear();
                 self.current_stream.clear();
@@ -168,6 +169,36 @@ impl App {
         }
         for line in it {
             self.transcript.push(Line2::Info(line));
+        }
+    }
+
+    /// Remove the last submitted turn from the session and the transcript.
+    fn undo(&mut self) {
+        if self.busy {
+            self.status = "cannot undo while a turn is running".into();
+            return;
+        }
+        let session = self.shared_session.lock().expect("session mutex");
+        match session.undo_last_turn() {
+            Ok(Some(text)) => {
+                if let Some(mark) = self.turn_marks.pop() {
+                    self.transcript.truncate(mark.min(self.transcript.len()));
+                }
+                self.auto_scroll = true;
+                self.status = "undid the last turn".into();
+                self.transcript.push(Line2::Info(format!(
+                    "↩ removed your last message: {}",
+                    crate::util::truncate_middle(&text, 80)
+                )));
+            }
+            Ok(None) => {
+                self.status = "nothing to undo".into();
+            }
+            Err(e) => {
+                self.transcript
+                    .push(Line2::Error(format!("undo failed: {e}")));
+                self.status = "undo failed".into();
+            }
         }
     }
 

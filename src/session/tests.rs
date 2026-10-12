@@ -65,3 +65,27 @@ fn delete_of_an_unknown_id_reports_false() {
     drop(s);
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[test]
+fn undo_last_turn_removes_the_instruction_and_its_replies() {
+    let (dir, path) = temp_db("undo");
+    let s = Session::open(&path, None).unwrap();
+    s.append("user", "first", None).unwrap();
+    s.append("assistant", "one", None).unwrap();
+    s.append("user", "second", None).unwrap();
+    s.append("tool", "out", Some("shell")).unwrap();
+    s.append("assistant", "two", None).unwrap();
+
+    assert_eq!(s.undo_last_turn().unwrap().as_deref(), Some("second"));
+    let roles: Vec<String> = s.entries().unwrap().into_iter().map(|e| e.role).collect();
+    assert_eq!(roles, vec!["user", "assistant"]);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn undo_last_turn_is_none_without_a_user_turn() {
+    let (dir, path) = temp_db("undo-empty");
+    let s = Session::open(&path, None).unwrap();
+    assert_eq!(s.undo_last_turn().unwrap(), None);
+    let _ = std::fs::remove_dir_all(dir);
+}

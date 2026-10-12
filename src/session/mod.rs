@@ -5,7 +5,7 @@ mod list;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
@@ -155,6 +155,33 @@ impl Session {
             out.push(r?);
         }
         Ok(out)
+    }
+
+    /// Drop the most recent turn: the last `user` entry and every entry after
+    /// it. Returns the removed instruction text, or `None` when there is no
+    /// user turn to undo.
+    ///
+    /// # Errors
+    /// Propagates database errors.
+    pub fn undo_last_turn(&self) -> Result<Option<String>> {
+        let conn = self.conn();
+        let last_user: Option<(i64, String)> = conn
+            .query_row(
+                "SELECT seq, content FROM entries
+                 WHERE session_id = ?1 AND role = 'user'
+                 ORDER BY seq DESC LIMIT 1",
+                params![self.id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        let Some((seq, text)) = last_user else {
+            return Ok(None);
+        };
+        conn.execute(
+            "DELETE FROM entries WHERE session_id = ?1 AND seq >= ?2",
+            params![self.id, seq],
+        )?;
+        Ok(Some(text))
     }
 
     /// Persist a note.

@@ -135,6 +135,7 @@ impl App {
                 if self.history.last() != Some(&text) {
                     self.history.push(text.clone());
                 }
+                self.turn_marks.push(self.transcript.len());
                 self.transcript.push(Line2::User(text.clone()));
                 self.status = "running…".into();
                 self.auto_scroll = true;
