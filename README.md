@@ -188,6 +188,9 @@ correctly; it is not treated as an empty reply.
 | `cme_parse` | parse NetExec / CrackMapExec output into hosts, creds and admin access |
 | `state_update` | record a vuln, credential, foothold or graph edge |
 | `state_query` | read the shared engagement state back out |
+| `attack_path_suggest` | find shortest attack paths through the recorded graph |
+| `report_gen` | render the whole engagement as a Markdown report |
+| `skill` | list and load on-demand knowledge packs |
 
 The engagement state (hosts, services, vulns, creds, access, edges) lives in
 the same SQLite database as the transcript, so it survives a restart and is

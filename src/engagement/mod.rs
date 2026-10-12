@@ -1,7 +1,9 @@
 //! Shared engagement state for offensive work: hosts, services, findings,
 //! credentials and the relationships between them.
 
+mod path;
 mod render;
+mod report;
 mod schema;
 mod store;
 

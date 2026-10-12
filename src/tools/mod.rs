@@ -74,6 +74,8 @@ impl Registry {
             Box::new(pentest::CmeParseTool::new(ctx.clone())),
             Box::new(pentest::StateUpdateTool::new(ctx.clone())),
             Box::new(pentest::StateQueryTool::new(ctx.clone())),
+            Box::new(pentest::AttackPathTool::new(ctx.clone())),
+            Box::new(pentest::ReportTool::new(ctx.clone())),
         ];
 
         if ctx.config.subagents_enabled && ctx.depth < ctx.config.subagent_max_depth {
