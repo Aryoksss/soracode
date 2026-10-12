@@ -107,21 +107,7 @@ pub enum StreamEvent {
     },
 }
 
-/// Outgoing request body for `/chat/completions`.
-#[derive(Serialize)]
-pub(super) struct ChatRequest<'a> {
-    pub(super) model: &'a str,
-    pub(super) messages: &'a [Message],
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) tools: Option<&'a [ToolSpec]>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(super) tool_choice: Option<&'a str>,
-    pub(super) max_tokens: u32,
-    pub(super) temperature: f32,
-    pub(super) stream: bool,
-}
-
-/// A single SSE data frame from the stream.
+/// A single SSE data frame from an OpenAI-compatible stream.
 #[derive(Deserialize)]
 pub(super) struct StreamChunk {
     #[serde(default)]

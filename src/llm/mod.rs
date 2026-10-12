@@ -7,7 +7,8 @@
 mod client;
 mod stream;
 mod types;
+mod wire;
 
-pub use self::client::Client;
+pub use self::client::{Client, ClientConfig};
 pub use self::stream::Completion;
 pub use self::types::{Message, StreamEvent, ToolCall, ToolSpec};

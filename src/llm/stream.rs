@@ -100,6 +100,56 @@ impl Assembler {
         }
     }
 
+    /// Record token usage reported so far, leaving unset counts unchanged.
+    pub(super) fn set_usage(&mut self, prompt: Option<u64>, completion: Option<u64>) {
+        if let Some(p) = prompt {
+            self.out.prompt_tokens = p;
+        }
+        if let Some(c) = completion {
+            self.out.completion_tokens = c;
+        }
+    }
+
+    /// Number of tool calls opened so far; used to assign ids on wires that
+    /// carry none.
+    pub(super) fn tool_count(&self) -> usize {
+        self.partial.len()
+    }
+
+    /// Open a tool call at `index`, optionally with its id and name.
+    pub(super) fn start_tool(&mut self, index: usize, id: Option<&str>, name: Option<&str>) {
+        let slot = self.partial.entry(index).or_default();
+        if let Some(id) = id.filter(|s| !s.is_empty()) {
+            slot.0 = id.to_string();
+        }
+        if let Some(name) = name {
+            slot.1.push_str(name);
+        }
+    }
+
+    /// Append to a tool call's argument JSON.
+    pub(super) fn push_tool_args(&mut self, index: usize, args: &str) {
+        self.partial.entry(index).or_default().2.push_str(args);
+    }
+
+    /// Append visible assistant text and emit it.
+    pub(super) fn push_text(&mut self, text: &str) -> Vec<StreamEvent> {
+        if text.is_empty() {
+            return Vec::new();
+        }
+        self.out.content.push_str(text);
+        vec![StreamEvent::Text(text.to_string())]
+    }
+
+    /// Append reasoning text and emit it.
+    pub(super) fn push_reasoning(&mut self, text: &str) -> Vec<StreamEvent> {
+        if text.is_empty() {
+            return Vec::new();
+        }
+        self.out.reasoning.push_str(text);
+        vec![StreamEvent::Reasoning(text.to_string())]
+    }
+
     /// Finish the turn, materialising accumulated tool calls.
     pub(super) fn finish(mut self) -> Completion {
         for (idx, (id, name, args)) in std::mem::take(&mut self.partial) {

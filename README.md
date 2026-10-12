@@ -8,7 +8,7 @@ behavior.
 
 The multi-provider layout follows [Cybermes](https://github.com/Zyrexnn/Cybermes),
 which separates a provider (endpoint plus key) from the model running on it.
-Soracode keeps that separation in one `models.toml` rather than a `.env`.
+Soracode keeps that separation in one `soracode.jsonc` rather than a `.env`.
 
 ## Build
 
@@ -51,76 +51,91 @@ Highest precedence wins:
 1. CLI flags
 2. `SORACODE_BASE_URL`, `SORACODE_API_KEY`, `SORACODE_MODEL`, `SORACODE_DEFAULT_MODEL`
 3. `--config <file>`
-4. `./soracode.toml`, `./soracode.models.toml`
-5. `~/.config/soracode/config.toml` or `config.json`, `models.toml`
+4. `./soracode.jsonc`, `./soracode.json`, `./soracode.toml`, `./soracode.models.toml`
+5. `~/.config/soracode/soracode.jsonc`/`.json`, `config.toml`, `models.toml`
 6. built-in defaults
 
-A minimal config, kept for compatibility:
-
-```toml
-[llm]
-base_url = "https://9router.aryoks.tech/v1"
-api_key  = "sk-..."
-model    = "gh/gpt-4.1"
-
-[agent]
-workspace = "/home/user/target"
-```
+Config files may be JSON, JSONC (comments and trailing commas allowed), or TOML.
 
 ## Models
 
-Flat `[llm]` settings hold one endpoint, one key, and one model. That is fine
-until you want a second model, and then the endpoint and key have to be
-repeated. Named providers and models fix that: a provider is an endpoint plus a
-key, and a model points at a provider.
+The model file uses the same `provider`/`models` layout as OpenCode, so a config
+you already have for another tool reads the way you expect. Generate a starting
+file and list what is configured:
 
 ```sh
-soracode --init-models      # write ~/.config/soracode/models.toml
+soracode --init-models      # write ~/.config/soracode/soracode.jsonc
 soracode --models           # show what is configured and which is active
 ```
 
-```toml
-default_model = "fast"
+```jsonc
+{
+  // the model a plain run uses, as <provider>/<model-id>
+  "model": "9router/gh/gpt-4.1",
 
-[providers.router]
-base_url = "https://9router.aryoks.tech/v1"
-api_key  = "sk-..."
-
-[providers.local]
-base_url = "http://127.0.0.1:1234/v1"
-api_key  = "lm-studio"          # ignored servers can put anything here
-
-[models.fast]
-provider = "router"
-model    = "gh/gpt-4.1"
-
-[models.smart]
-provider   = "router"
-model      = "kr/deepseek-3.2"
-max_tokens = 32768
-temperature = 0.2               # per-model overrides win over the globals
-
-[models.offline]
-provider = "local"
-model    = "qwen2.5-coder-32b"
+  "provider": {
+    "9router": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "9Router",
+      "options": {
+        "baseURL": "https://9router.aryoks.tech/v1",
+        "apiKey": "{env:NINEROUTER_API_KEY}"   // never write the key in the file
+      },
+      "models": {
+        "gh/gpt-4.1":      { "name": "GPT-4.1",      "limit": { "output": 16384 } },
+        "kr/deepseek-3.2": { "name": "DeepSeek 3.2", "limit": { "output": 32768 },
+                             "temperature": 0.2 }
+      }
+    }
+  }
+}
 ```
 
-Add a model by adding a block. Point it at another provider by changing one
-word. Remove it by deleting the block. No code, rebuild, or restart is
-involved, because the file is read at startup.
+- **Add a model**: add a key under `models`. Its selectable name is
+  `provider/model-id`.
+- **Switch model**: `-m 9router/gh/gpt-4.1`, the same string that appears in `"model"`.
+- **Add a provider**: add another block with its own `options`. A key can be
+  read from the environment with `{env:VAR}` instead of being written down.
+- **Point at a local server**: same block, `"baseURL": "http://127.0.0.1:1234/v1"`.
+
+A provider speaks one of three wire dialects. OpenAI-compatible is the default
+and covers every router and local server; `"wire": "anthropic"` and
+`"wire": "google"` select the native Messages and Gemini APIs, which differ in
+request body, auth header, and streaming frames. The client translates to and
+from those dialects, so a model block, a tool, and the operator's workflow are
+identical regardless of which one is in use.
+
+```jsonc
+"anthropic": {
+  "options": { "baseURL": "https://api.anthropic.com/v1", "wire": "anthropic",
+               "apiKey": "{env:ANTHROPIC_API_KEY}" },
+  "models": { "claude-sonnet-4-5": { "name": "Claude Sonnet 4.5" } }
+},
+"gemini": {
+  "options": { "baseURL": "https://generativelanguage.googleapis.com/v1beta",
+               "wire": "google", "apiKey": "{env:GEMINI_API_KEY}" },
+  "models": { "gemini-3-flash": { "name": "Gemini 3 Flash" } }
+}
+```
+
+`--wire openai|anthropic|google` overrides the dialect for the selected model,
+the same way `--base-url` overrides the endpoint.
+
+A TOML layout (`models.toml`) with `[providers.*]` and `[models.*]` is still
+read, so an existing file keeps working. Everything below applies to both.
 
 Switching is a single flag:
 
 ```sh
-soracode -m fast     # name from models.toml
-soracode -m smart
-soracode -m gh/gpt-4.1   # a raw model string still works
+soracode -m 9router/gh/gpt-4.1   # provider/model, as in the file
+soracode -m fast                 # a short name from models.toml
+soracode -m gh/gpt-4.1           # a raw model string still works
 ```
 
 The header names the model and where it came from, so a run is never ambiguous:
 
 ```
-soracode: session 85659c60 | model gh/gpt-4o-mini via <inline> | workspace /w
+soracode: session 85659c60 | model 9router/gh/gpt-4.1 via 9router (openai) | workspace /w
 ```
 
 Names are checked against the file, so a misspelling is reported locally rather
@@ -131,8 +146,10 @@ soracode: unknown model `fst`; configured models: fast, smart, offline.
           Use `literal:fst` to send it verbatim.
 ```
 
-A name containing `/` or `:` is always treated as a raw model string, and
-`literal:` forces that for any name. With no models file, every `--model` value
+A name that matches a configured model wins, so an OpenCode-style
+`provider/model-id` selects it. Any other name containing `/` or `:` is treated
+as a raw model string, and `literal:` forces that for any name. With no models
+file, every `--model` value
 is literal and behavior is unchanged.
 
 ### A working catalogue

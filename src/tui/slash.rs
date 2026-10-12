@@ -8,7 +8,7 @@ use super::{
     describe_tools, describe_vulns, App, Line2, Palette,
 };
 use crate::agent::AgentEvent;
-use crate::llm::Client;
+use crate::llm::{Client, ClientConfig};
 
 impl App {
     /// Execute a slash command by name.
@@ -143,20 +143,25 @@ impl App {
     /// Rebuild the shared client for a newly chosen model name.
     pub(super) fn switch_model(&mut self, name: &str) {
         match self.cfg.resolve(Some(name)) {
-            Ok(r) => match Client::new(
-                &r.base_url,
-                &r.api_key,
-                &r.model,
-                r.max_tokens,
-                r.temperature,
-                r.timeout_secs,
-                r.headers.clone(),
-            ) {
+            Ok(r) => match Client::new(ClientConfig {
+                base_url: r.base_url.clone(),
+                wire: r.wire,
+                api_key: r.api_key.clone(),
+                model: r.model.clone(),
+                max_tokens: r.max_tokens,
+                temperature: r.temperature,
+                timeout_secs: r.timeout_secs,
+                extra: r.headers.clone(),
+            }) {
                 Ok(c) => {
+                    let wire = c.wire();
                     *self.client.lock().expect("client mutex") = c;
                     self.model = r.model.clone();
-                    self.transcript
-                        .push(Line2::Info(format!("model → {name} ({})", r.model)));
+                    self.transcript.push(Line2::Info(format!(
+                        "model → {name} ({} via {})",
+                        r.model,
+                        wire.as_str()
+                    )));
                     self.status = format!("model {name}");
                 }
                 Err(e) => self

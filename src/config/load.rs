@@ -25,9 +25,15 @@ pub fn load(explicit: Option<&Path>) -> Result<Config> {
     }
 
     // 3. project config
-    let local = PathBuf::from("soracode.toml");
-    if local.exists() {
-        cfg.merge_file(&local)?;
+    for name in ["soracode.toml", "soracode.json", "soracode.jsonc"] {
+        let local = PathBuf::from(name);
+        if local.exists() {
+            if name.ends_with(".toml") {
+                cfg.merge_file(&local)?;
+            } else {
+                cfg.merge_opencode(&local)?;
+            }
+        }
     }
 
     // 4. explicit path wins over discovered files
@@ -35,7 +41,11 @@ pub fn load(explicit: Option<&Path>) -> Result<Config> {
         if !p.exists() {
             return Err(Error::Config(format!("no such config: {}", p.display())));
         }
-        cfg.merge_file(p)?;
+        if p.extension().and_then(|e| e.to_str()) == Some("toml") {
+            cfg.merge_file(p)?;
+        } else {
+            cfg.merge_opencode(p)?;
+        }
     }
 
     // 5. environment
@@ -48,9 +58,14 @@ pub fn load(explicit: Option<&Path>) -> Result<Config> {
 fn models_files(explicit: Option<&Path>) -> Vec<PathBuf> {
     let mut out = Vec::new();
     if let Some(dir) = dirs::config_dir() {
-        out.push(dir.join("soracode").join("models.toml"));
+        let base = dir.join("soracode");
+        out.push(base.join("models.toml"));
+        out.push(base.join("soracode.json"));
+        out.push(base.join("soracode.jsonc"));
     }
     out.push(PathBuf::from("soracode.models.toml"));
+    out.push(PathBuf::from("soracode.json"));
+    out.push(PathBuf::from("soracode.jsonc"));
     if let Some(p) = explicit {
         let sibling = p.with_file_name("soracode.models.toml");
         if sibling.exists() {
@@ -74,7 +89,11 @@ impl Config {
 
         for path in models_files(explicit) {
             if path.exists() {
-                cfg.merge_models(&path)?;
+                if path.extension().and_then(|e| e.to_str()) == Some("toml") {
+                    cfg.merge_models(&path)?;
+                } else {
+                    cfg.merge_opencode(&path)?;
+                }
             }
         }
 
@@ -92,6 +111,7 @@ impl Config {
         model: Option<String>,
         workspace: Option<PathBuf>,
         mode: Option<crate::config::Mode>,
+        wire: Option<crate::models::Wire>,
     ) {
         if let Some(v) = base_url {
             self.llm.base_url = v.clone();
@@ -110,6 +130,9 @@ impl Config {
         if let Some(m) = mode {
             self.agent.0.mode = m;
         }
+        if let Some(w) = wire {
+            self.cli_wire = Some(w);
+        }
     }
 
     /// Merge a standalone models file into the provider/model maps.
@@ -126,6 +149,23 @@ impl Config {
         }
         if parsed.default_model.is_some() {
             self.default_model = parsed.default_model;
+        }
+        Ok(())
+    }
+
+    /// Merge an OpenCode-shaped JSON/JSONC file into the provider/model maps.
+    fn merge_opencode(&mut self, path: &Path) -> Result<()> {
+        let text = std::fs::read_to_string(path)?;
+        let oc = super::opencode::parse(&text)?;
+
+        for (k, v) in oc.providers {
+            self.providers.insert(k, v);
+        }
+        for (k, v) in oc.models {
+            self.models.insert(k, v);
+        }
+        if oc.default_model.is_some() {
+            self.default_model = oc.default_model;
         }
         Ok(())
     }

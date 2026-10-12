@@ -16,13 +16,57 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
 
-pub use self::starter::{models_path, starter_models_toml};
+pub use self::starter::{models_path, starter_models_jsonc};
+
+/// The request/response dialect an endpoint speaks.
+///
+/// Named providers default to the OpenAI-compatible wire, which also covers
+/// every local server and router. Anthropic and Google expose materially
+/// different request bodies, auth headers, and streaming frames, so the wire is
+/// chosen per provider rather than sniffed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Wire {
+    /// OpenAI-compatible `/chat/completions`.
+    #[default]
+    OpenAi,
+    /// Anthropic `/v1/messages`.
+    Anthropic,
+    /// Google Gemini `models/{model}:streamGenerateContent`.
+    Google,
+}
+
+impl Wire {
+    /// Parse a wire name, tolerating surrounding whitespace and case.
+    #[must_use]
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "openai" | "open-ai" | "compatible" => Some(Self::OpenAi),
+            "anthropic" | "claude" => Some(Self::Anthropic),
+            "google" | "gemini" => Some(Self::Google),
+            _ => None,
+        }
+    }
+
+    /// The canonical name used in configuration.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::OpenAi => "openai",
+            Self::Anthropic => "anthropic",
+            Self::Google => "google",
+        }
+    }
+}
 
 /// An endpoint plus credentials, referenced by name.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Provider {
     /// OpenAI-compatible base URL, e.g. `https://9router.example/v1`.
     pub base_url: String,
+    /// Request/response dialect; defaults to OpenAI-compatible.
+    #[serde(default)]
+    pub wire: Wire,
     /// Bearer token. May be empty for local servers that ignore auth.
     #[serde(default)]
     pub api_key: String,
@@ -69,6 +113,8 @@ pub struct Resolved {
     pub provider: String,
     /// Endpoint to call.
     pub base_url: String,
+    /// Request/response dialect the endpoint speaks.
+    pub wire: Wire,
     /// Credential to present.
     pub api_key: String,
     /// Provider-level extra headers.
@@ -171,6 +217,7 @@ impl Catalog {
             name: name.to_string(),
             provider: model.provider.clone(),
             base_url: provider.base_url.clone(),
+            wire: provider.wire,
             api_key,
             headers: provider.headers.clone(),
             model: model.model.clone(),

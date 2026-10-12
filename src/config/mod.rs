@@ -10,7 +10,9 @@
 //! There is deliberately **no allowlist / permission model** here: the operator
 //! running soracode is the authority. Any target or command given is executed.
 
+mod env;
 mod load;
+mod opencode;
 mod select;
 mod types;
 
@@ -20,6 +22,9 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 pub use self::types::{AgentConfig, LlmConfig, Mode};
+pub use crate::models::Wire;
+
+pub(super) use self::env::env_expand;
 
 /// Full soracode configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,6 +49,9 @@ pub struct Config {
     /// Explicit endpoint override that wins over a selected provider.
     #[serde(skip)]
     pub cli_base_url: Option<String>,
+    /// Explicit wire override that wins over a selected provider's dialect.
+    #[serde(skip)]
+    pub cli_wire: Option<crate::models::Wire>,
     /// Explicit key override that wins over a selected provider.
     #[serde(skip)]
     pub cli_api_key: Option<String>,
@@ -85,6 +93,7 @@ impl Default for Config {
             models: BTreeMap::new(),
             default_model: None,
             cli_base_url: None,
+            cli_wire: None,
             cli_api_key: None,
         }
     }

@@ -9,6 +9,7 @@ fn catalog() -> Catalog {
         Provider {
             base_url: "https://example.test/v1".into(),
             api_key: "sk-test".into(),
+            wire: Wire::default(),
             headers: BTreeMap::new(),
         },
     );
@@ -17,6 +18,7 @@ fn catalog() -> Catalog {
         Provider {
             base_url: "http://127.0.0.1:1234/v1".into(),
             api_key: String::new(),
+            wire: Wire::default(),
             headers: BTreeMap::new(),
         },
     );
@@ -115,6 +117,7 @@ fn merge_lets_later_files_add_models() {
         Provider {
             base_url: "https://other.test/v1".into(),
             api_key: "k".into(),
+            wire: Wire::default(),
             headers: BTreeMap::new(),
         },
     );
@@ -132,8 +135,59 @@ fn merge_lets_later_files_add_models() {
 }
 
 #[test]
-fn starter_file_is_valid_toml_with_a_default_model() {
-    let parsed: Catalog = toml::from_str(&starter_models_toml()).unwrap();
-    assert_eq!(parsed.model_names().len(), 2);
-    assert!(parsed.models.contains_key("fast"));
+fn starter_file_is_valid_jsonc_and_matches_the_opencode_shape() {
+    let text = starter_models_jsonc();
+    let dir = std::env::temp_dir().join("soracode-starter-jsonc");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("soracode.jsonc");
+    std::fs::write(&path, &text).unwrap();
+
+    let cfg = crate::config::Config::load_with_models(Some(&path)).unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+
+    let provider = cfg.providers.get("9router").expect("router provider");
+    assert_eq!(
+        provider.base_url,
+        std::env::var("SORACODE_BASE_URL")
+            .unwrap_or_else(|_| "https://9router.aryoks.tech/v1".into())
+    );
+    assert!(cfg.models.contains_key("9router/gh/gpt-4.1"));
+    assert!(cfg.models.contains_key("9router/kr/deepseek-3.2"));
+    let m = &cfg.models["9router/gh/gpt-4.1"];
+    assert_eq!(m.provider, "9router");
+    assert_eq!(m.max_tokens, Some(16384));
+}
+
+#[test]
+fn wire_names_parse_and_round_trip() {
+    assert_eq!(Wire::parse("anthropic"), Some(Wire::Anthropic));
+    assert_eq!(Wire::parse("  GEMINI "), Some(Wire::Google));
+    assert_eq!(Wire::parse("openai"), Some(Wire::OpenAi));
+    assert_eq!(Wire::parse("nope"), None);
+    assert_eq!(Wire::default(), Wire::OpenAi);
+    assert_eq!(Wire::Google.as_str(), "google");
+}
+
+#[test]
+fn provider_wire_defaults_to_openai_when_absent() {
+    let toml = r#"
+        [providers.plain]
+        base_url = "https://x.test/v1"
+        api_key = "k"
+    "#;
+    let file: crate::config::ModelsFile = toml::from_str(toml).unwrap();
+    assert_eq!(file.providers["plain"].wire, Wire::OpenAi);
+}
+
+#[test]
+fn provider_wire_is_read_from_config() {
+    let toml = r#"
+        [providers.anth]
+        base_url = "https://api.anthropic.com/v1"
+        wire = "anthropic"
+        api_key = "k"
+    "#;
+    let file: crate::config::ModelsFile = toml::from_str(toml).unwrap();
+    assert_eq!(file.providers["anth"].wire, Wire::Anthropic);
 }

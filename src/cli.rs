@@ -28,6 +28,10 @@ pub struct Cli {
     #[arg(long = "base-url")]
     pub base_url: Option<String>,
 
+    /// Wire dialect override: openai (default), anthropic, or google.
+    #[arg(long = "wire")]
+    pub wire: Option<String>,
+
     /// API key override.
     #[arg(long = "api-key")]
     pub api_key: Option<String>,

@@ -1,7 +1,7 @@
 //! Tests for configuration resolution.
 
 use super::*;
-use crate::models::Model;
+use crate::models::{Model, Wire};
 
 fn with_models() -> Config {
     let mut c = Config::default();
@@ -13,6 +13,7 @@ fn with_models() -> Config {
         crate::models::Provider {
             base_url: "https://router.test/v1".into(),
             api_key: "sk-router".into(),
+            wire: Wire::default(),
             headers: BTreeMap::new(),
         },
     );
@@ -183,3 +184,5 @@ fn mode_parse_is_case_insensitive_and_trims() {
 fn default_mode_is_auto() {
     assert_eq!(AgentConfig::default().mode, Mode::Auto);
 }
+
+mod opencode;

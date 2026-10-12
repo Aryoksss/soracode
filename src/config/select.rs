@@ -2,7 +2,7 @@
 
 use super::{Config, ModelSelection};
 use crate::error::{Error, Result};
-use crate::models::{Catalog, Fallback, Resolved};
+use crate::models::{Catalog, Fallback, Resolved, Wire};
 
 impl Config {
     /// Validate that the configuration is usable for the chosen model.
@@ -58,12 +58,13 @@ impl Config {
 
     /// Decide what `--model`/`SORACODE_MODEL` meant.
     ///
-    /// A request matching a configured model name selects it. A raw identifier
-    /// such as `gh/gpt-4.1` is taken literally, so the flag keeps working with
-    /// no models file. Once models are configured, a bare word that matches
+    /// A request matching a configured model name selects it, including an
+    /// OpenCode-style `provider/model-id` key. A raw identifier such as
+    /// `gh/gpt-4.1` is taken literally, so the flag keeps working with no
+    /// models file. Once models are configured, a bare word that matches
     /// nothing is treated as a typo rather than silently sent to the provider,
-    /// because that failure is otherwise a confusing 404. Use a slash or the
-    /// `literal:` prefix to force a literal name.
+    /// because that failure is otherwise a confusing 404. Use the `literal:`
+    /// prefix to force a raw name.
     #[must_use]
     pub fn selection(&self, requested: Option<&str>) -> ModelSelection {
         match requested.map(str::trim).filter(|s| !s.is_empty()) {
@@ -114,6 +115,9 @@ impl Config {
                 if let Some(u) = &self.cli_base_url {
                     r.base_url = u.clone();
                 }
+                if let Some(w) = self.cli_wire {
+                    r.wire = w;
+                }
                 if let Some(k) = &self.cli_api_key {
                     r.api_key = k.clone();
                 }
@@ -123,6 +127,7 @@ impl Config {
                 name: model.clone(),
                 provider: "<inline>".into(),
                 base_url: self.llm.base_url.clone(),
+                wire: self.cli_wire.unwrap_or(Wire::OpenAi),
                 api_key: self.llm.api_key.clone(),
                 headers: self.llm.headers.clone(),
                 model,
@@ -134,6 +139,7 @@ impl Config {
                 name: self.llm.model.clone(),
                 provider: "<default>".into(),
                 base_url: self.llm.base_url.clone(),
+                wire: self.cli_wire.unwrap_or(Wire::OpenAi),
                 api_key: self.llm.api_key.clone(),
                 headers: self.llm.headers.clone(),
                 model: self.llm.model.clone(),

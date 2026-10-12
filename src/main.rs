@@ -27,7 +27,7 @@ use clap::Parser;
 use crate::cli::Cli;
 use crate::config::Config;
 use crate::error::Result;
-use crate::llm::Client;
+use crate::llm::{Client, ClientConfig};
 use crate::session::Session;
 
 #[tokio::main(flavor = "multi_thread")]
@@ -52,12 +52,23 @@ async fn run() -> Result<()> {
             }
         },
     };
+    let wire = match cli.wire.as_deref() {
+        None => None,
+        Some(s) => match config::Wire::parse(s) {
+            Some(w) => Some(w),
+            None => {
+                eprintln!("soracode: unknown --wire `{s}` — use openai|anthropic|google");
+                std::process::exit(2);
+            }
+        },
+    };
     cfg.apply_overrides(
         cli.base_url.clone(),
         cli.api_key.clone(),
         cli.model.clone(),
         cli.workspace.clone(),
         mode,
+        wire,
     );
 
     if cli.init_models {
@@ -71,7 +82,7 @@ async fn run() -> Result<()> {
                 path.display()
             );
         } else {
-            std::fs::write(&path, models::starter_models_toml())?;
+            std::fs::write(&path, models::starter_models_jsonc())?;
             eprintln!("soracode: wrote {}", path.display());
         }
         return Ok(());
@@ -145,21 +156,23 @@ async fn run() -> Result<()> {
     let session = Arc::new(Session::open(&cfg.db_path, resume_id.as_deref())?);
     let cfg = Arc::new(cfg);
 
-    let client = Client::new(
-        &resolved.base_url,
-        &resolved.api_key,
-        &resolved.model,
-        resolved.max_tokens,
-        resolved.temperature,
-        resolved.timeout_secs,
-        resolved.headers.clone(),
-    )?;
+    let client = Client::new(ClientConfig {
+        base_url: resolved.base_url.clone(),
+        wire: resolved.wire,
+        api_key: resolved.api_key.clone(),
+        model: resolved.model.clone(),
+        max_tokens: resolved.max_tokens,
+        temperature: resolved.temperature,
+        timeout_secs: resolved.timeout_secs,
+        extra: resolved.headers.clone(),
+    })?;
 
     eprintln!(
-        "soracode: session {} | model {} via {} | workspace {}",
+        "soracode: session {} | model {} via {} ({}) | workspace {}",
         session.id(),
         resolved.name,
         resolved.provider,
+        resolved.wire.as_str(),
         cfg.agent().workspace.display()
     );
 
