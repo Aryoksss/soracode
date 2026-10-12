@@ -3,5 +3,23 @@ target/
 *.db-wal
 *.db-shm
 tmux-client-*.log
+tmux-server-*.log
+*.log
 .omo/
 .codegraph/
+
+# Local secrets and per-machine config — never commit these.
+.env
+.env.*
+*.env
+models.toml
+soracode.toml
+soracode.models.toml
+config.toml
+config.json
+findings.md
+*.pem
+*.key
+id_rsa*
+*.secret
+secrets.*

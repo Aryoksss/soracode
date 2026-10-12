@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Block commits that would introduce secrets into the repository.
+set -euo pipefail
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+# Refuse to commit known secret-bearing filenames outright.
+for f in $staged; do
+  case "$f" in
+    *models.toml|*soracode.toml|*.env|.env*|*/secrets.*|*.pem|*.key|id_rsa*)
+      echo "pre-commit: refusing to commit sensitive file: $f" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# Scan added lines for key-like tokens and inline credentials.
+pattern='sk-[A-Za-z0-9._-]{12,}|(api[_-]?key|token|secret|password)[[:space:]]*[=:][[:space:]]*"[^"]{8,}"|Bearer [A-Za-z0-9._-]{20,}'
+hits=$(git diff --cached --unified=0 --no-color -- $staged \
+        | grep -E '^\+' | grep -vE '^\+\+\+' \
+        | grep -nE "$pattern" || true)
+if [ -n "$hits" ]; then
+  echo "pre-commit: possible secret in staged changes:" >&2
+  echo "$hits" >&2
+  echo "Commit blocked. Remove it, or use 'git commit --no-verify' if it is a false positive." >&2
+  exit 1
+fi
