@@ -51,8 +51,11 @@ impl App {
                     self.palette.selected += 1;
                 }
             }
-            (KeyCode::Enter, _) | (KeyCode::Tab, _) => {
+            (KeyCode::Enter, _) => {
                 self.accept_palette(on_submit);
+            }
+            (KeyCode::Tab, _) => {
+                self.complete_palette();
             }
             (KeyCode::Char('c'), KeyModifiers::CONTROL) => return true,
             (KeyCode::Char(c), _) => {
@@ -68,6 +71,17 @@ impl App {
             _ => {}
         }
         self.quit
+    }
+
+    /// Insert the highlighted command into the input, leaving it editable.
+    fn complete_palette(&mut self) {
+        if self.palette.models.is_some() || self.palette.files.is_some() {
+            return;
+        }
+        if let Some(cmd) = command::matching(&self.input).get(self.palette.selected) {
+            self.input = format!("/{} ", cmd.name);
+            self.palette = Palette::closed();
+        }
     }
 
     /// Act on the highlighted palette entry.

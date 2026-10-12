@@ -90,41 +90,52 @@ impl App {
     }
 
     fn draw_palette(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
-        let (title, rows): (&str, Vec<(String, String)>) =
+        let (label, rows): (&str, Vec<(String, String)>) =
             match (&self.palette.models, &self.palette.files) {
                 (Some(models), _) => (
-                    " models ",
+                    "models",
                     models.iter().map(|m| (m.clone(), String::new())).collect(),
                 ),
                 (_, Some(files)) => (
-                    " files ",
+                    "files",
                     files.iter().map(|f| (f.clone(), String::new())).collect(),
                 ),
                 _ => (
-                    " commands ",
+                    "commands",
                     command::matching(&self.input)
                         .iter()
                         .map(|c| (format!("/{}", c.name), c.desc.to_string()))
                         .collect(),
                 ),
             };
+        let title = format!(" {label} ({}) ", rows.len());
 
+        // Show only what fits, scrolled so the selection stays visible.
+        let visible = (area.height.saturating_sub(2) as usize).max(1);
+        let selected = self.palette.selected.min(rows.len().saturating_sub(1));
+        let first = if rows.len() <= visible {
+            0
+        } else {
+            selected.saturating_sub(visible - 1)
+        };
         let lines: Vec<Line> = rows
             .iter()
             .enumerate()
+            .skip(first)
+            .take(visible)
             .map(|(i, (name, desc))| {
-                let selected = i == self.palette.selected;
-                let bg = if selected {
+                let active = i == selected;
+                let bg = if active {
                     theme::selection_bg()
                 } else {
                     theme::panel_bg()
                 };
-                let name_fg = if selected {
+                let name_fg = if active {
                     theme::accent()
                 } else {
                     theme::text()
                 };
-                let marker = if selected { "▌" } else { " " };
+                let marker = if active { "▌" } else { " " };
                 Line::from(vec![
                     Span::styled(
                         format!("{marker} {name:<12}"),
@@ -153,7 +164,14 @@ impl App {
                         Style::default()
                             .fg(theme::accent())
                             .add_modifier(Modifier::BOLD),
-                    )),
+                    ))
+                    .title_bottom(
+                        Line::from(Span::styled(
+                            " ↑↓ select · ⏎ / Tab accept · Esc cancel ",
+                            Style::default().fg(theme::text_dim()),
+                        ))
+                        .alignment(Alignment::Right),
+                    ),
             );
         f.render_widget(para, area);
     }
