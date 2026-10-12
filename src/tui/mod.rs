@@ -3,6 +3,8 @@
 mod accessors;
 mod apply;
 mod command;
+mod copy;
+mod diff;
 mod draw;
 mod keys;
 mod markdown;

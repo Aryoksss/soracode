@@ -23,6 +23,10 @@ impl App {
                     .push(Line2::Tool(format!("▶ {name} {short}")));
             }
             AgentEvent::ToolEnd { name, output } => {
+                if matches!(name.as_str(), "edit" | "write") {
+                    self.push_file_change(&name, &output);
+                    return;
+                }
                 let first = output.lines().next().unwrap_or("").to_string();
                 let extra = output.lines().count().saturating_sub(1);
                 let text = if extra > 0 {
@@ -76,5 +80,15 @@ impl App {
                 .push(Line2::Assistant(self.current_stream.clone()));
         }
         self.current_stream.clear();
+    }
+
+    /// Render a `write`/`edit` result as a header plus a colored diff.
+    fn push_file_change(&mut self, name: &str, output: &str) {
+        let (head, changes) = super::diff::file_change(output);
+        self.transcript
+            .push(Line2::Tool(format!("◀ {name}: {head}")));
+        for line in changes {
+            self.transcript.push(Line2::Diff(line));
+        }
     }
 }
