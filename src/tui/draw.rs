@@ -209,6 +209,16 @@ impl App {
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
             .border_style(Style::default().fg(border));
+        let rows = self.input.lines().count();
+        if rows > 1 {
+            block = block.title(
+                Line::from(Span::styled(
+                    format!(" {rows} lines "),
+                    Style::default().fg(theme::text_dim()),
+                ))
+                .alignment(Alignment::Left),
+            );
+        }
         if let Some(q) = &self.queued {
             let chip = format!(" queued: {} ", truncate(q, 40));
             block = block.title(
