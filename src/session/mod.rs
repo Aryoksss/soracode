@@ -1,5 +1,7 @@
 //! Session persistence in SQLite: transcript, notes, resume.
 
+mod list;
+
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -164,53 +166,14 @@ impl Session {
     /// Propagates database errors.
     pub fn notes(&self) -> Result<Vec<(String, String)>> {
         let conn = self.conn();
-        let mut stmt = conn
-            .prepare("SELECT tag, body FROM notes WHERE session_id = ?1 ORDER BY ts")?;
+        let mut stmt =
+            conn.prepare("SELECT tag, body FROM notes WHERE session_id = ?1 ORDER BY ts")?;
         let rows = stmt.query_map(params![self.id], |r| Ok((r.get(0)?, r.get(1)?)))?;
         let mut out = Vec::new();
         for r in rows {
             out.push(r?);
         }
         Ok(out)
-    }
-
-    /// List recent sessions, newest first.
-    ///
-    /// # Errors
-    /// Propagates database errors.
-    pub fn list(path: &Path, limit: usize) -> Result<Vec<(String, i64, String)>> {
-        if !path.exists() {
-            return Ok(Vec::new());
-        }
-        let conn = Connection::open(path)?;
-        conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, created INTEGER NOT NULL, cwd TEXT);",
-        )?;
-        let mut stmt = conn.prepare(
-            "SELECT s.id, s.created, COALESCE(s.cwd,''),
-                    (SELECT COUNT(*) FROM entries e WHERE e.session_id = s.id)
-             FROM sessions s ORDER BY s.created DESC, s.rowid DESC LIMIT ?1",
-        )?;
-        let rows = stmt.query_map(params![limit as i64], |r| {
-            let id: String = r.get(0)?;
-            let created: i64 = r.get(1)?;
-            let cwd: String = r.get(2)?;
-            let count: i64 = r.get(3)?;
-            Ok((id, created, format!("{cwd}  ({count} entries)")))
-        })?;
-        let mut out = Vec::new();
-        for r in rows {
-            out.push(r?);
-        }
-        Ok(out)
-    }
-
-    /// The newest session id in the database, if any exists.
-    ///
-    /// # Errors
-    /// Propagates database errors.
-    pub fn latest(path: &Path) -> Result<Option<String>> {
-        Ok(Self::list(path, 1)?.into_iter().next().map(|(id, _, _)| id))
     }
 }
 
@@ -222,32 +185,4 @@ fn now() -> i64 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::Session;
-
-    fn temp_db(tag: &str) -> (std::path::PathBuf, std::path::PathBuf) {
-        let dir = std::env::temp_dir().join(format!("soracode-session-{tag}"));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        (dir.clone(), dir.join("s.db"))
-    }
-
-    #[test]
-    fn latest_is_none_on_an_empty_database() {
-        let (dir, path) = temp_db("empty");
-        assert_eq!(Session::latest(&path).unwrap(), None);
-        let _ = std::fs::remove_dir_all(dir);
-    }
-
-    #[test]
-    fn latest_returns_the_newest_session() {
-        let (dir, path) = temp_db("newest");
-        let a = Session::open(&path, None).unwrap();
-        a.append("user", "first", None).unwrap();
-        let b = Session::open(&path, None).unwrap();
-
-        let got = Session::latest(&path).unwrap();
-        assert_eq!(got.as_deref(), Some(b.id()));
-        let _ = std::fs::remove_dir_all(dir);
-    }
-}
+mod tests;

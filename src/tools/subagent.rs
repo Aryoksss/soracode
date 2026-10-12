@@ -93,9 +93,7 @@ impl Tool for SubagentTool {
             for (instruction, label) in chunk {
                 let spawner = spawner.clone();
                 let instruction = instruction.clone();
-                let label = label
-                    .clone()
-                    .unwrap_or_else(|| crate::util::short_id());
+                let label = label.clone().unwrap_or_else(crate::util::short_id);
                 handles.push(tokio::spawn(async move {
                     let result = spawner.spawn(&instruction, Some(label.clone())).await;
                     (label, result)

@@ -9,6 +9,7 @@ use crate::error::Result;
 
 /// Lists the host tool inventory, optionally refreshing it.
 pub struct ToolsTool {
+    #[allow(dead_code)] // held for registry-uniform construction; run() needs no context
     ctx: ToolContext,
 }
 
@@ -50,10 +51,7 @@ impl Tool for ToolsTool {
 
     async fn run(&self, args: Value) -> Result<String> {
         let filter = arg_str_opt(&args, "filter").map(|f| f.to_lowercase());
-        let rescan = args
-            .get("rescan")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
+        let rescan = args.get("rescan").and_then(Value::as_bool).unwrap_or(false);
 
         let inv = if rescan {
             catalog::rescan().await

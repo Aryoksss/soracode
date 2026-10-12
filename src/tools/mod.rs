@@ -2,11 +2,11 @@
 
 pub mod catalog;
 pub mod fs;
+pub mod host;
 pub mod http;
 pub mod notes;
 pub mod shell;
 pub mod subagent;
-pub mod tools;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -63,7 +63,7 @@ impl Registry {
             Box::new(fs::GrepTool::new(ctx.clone())),
             Box::new(notes::NoteTool::new(ctx.clone())),
             Box::new(notes::RecallTool::new(ctx.clone())),
-            Box::new(tools::ToolsTool::new(ctx.clone())),
+            Box::new(host::ToolsTool::new(ctx.clone())),
         ];
 
         if ctx.config.subagents_enabled && ctx.depth < ctx.config.subagent_max_depth {
@@ -97,6 +97,7 @@ impl Registry {
 
     /// Names of the registered tools.
     #[must_use]
+    #[allow(dead_code)] // introspection helper for diagnostics
     pub fn names(&self) -> Vec<&'static str> {
         self.tools.iter().map(|t| t.name()).collect()
     }
@@ -116,7 +117,9 @@ pub fn arg_str(args: &serde_json::Value, key: &str) -> Result<String> {
 /// Extract an optional string argument.
 #[must_use]
 pub fn arg_str_opt(args: &serde_json::Value, key: &str) -> Option<String> {
-    args.get(key).and_then(serde_json::Value::as_str).map(str::to_string)
+    args.get(key)
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_string)
 }
 
 /// Extract an optional integer argument.

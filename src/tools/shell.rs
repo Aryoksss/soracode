@@ -73,8 +73,8 @@ impl Tool for ShellTool {
             .get("background")
             .and_then(Value::as_bool)
             .unwrap_or(false);
-        let timeout = arg_u64_opt(&args, "timeout_secs")
-            .unwrap_or(self.ctx.config.tool_timeout_secs);
+        let timeout =
+            arg_u64_opt(&args, "timeout_secs").unwrap_or(self.ctx.config.tool_timeout_secs);
 
         let mut cmd = Command::new("/bin/sh");
         cmd.arg("-c")
@@ -146,9 +146,7 @@ impl Tool for ShellTool {
                 let limit = self.ctx.config.tool_output_limit;
                 let shown = truncate_middle(&body, limit);
 
-                Ok(format!(
-                    "$ {command}\nexit: {code}\n\n{shown}"
-                ))
+                Ok(format!("$ {command}\nexit: {code}\n\n{shown}"))
             }
             Ok(Err(e)) => Err(e),
             Err(_) => Ok(format!(

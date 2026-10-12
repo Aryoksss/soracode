@@ -42,9 +42,11 @@ pub enum Error {
 
     /// Terminal failure.
     #[error("terminal error: {0}")]
+    #[allow(dead_code)] // raised by future terminal-handling paths
     Terminal(String),
 
     /// Operation cancelled by the user.
     #[error("cancelled")]
+    #[allow(dead_code)] // raised by future cancellation-aware paths
     Cancelled,
 }

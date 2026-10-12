@@ -3,3 +3,5 @@ target/
 *.db-wal
 *.db-shm
 tmux-client-*.log
+.omo/
+.codegraph/

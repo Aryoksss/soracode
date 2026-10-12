@@ -118,7 +118,10 @@ impl Tool for NoteTool {
         let tag = arg_str(&args, "tag")?;
         let body = arg_str(&args, "body")?;
         self.ctx.notes.add(&tag, &body).await;
-        Ok(format!("noted [{tag}] ({} total)", self.ctx.notes.len().await))
+        Ok(format!(
+            "noted [{tag}] ({} total)",
+            self.ctx.notes.len().await
+        ))
     }
 }
 

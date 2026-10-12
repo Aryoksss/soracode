@@ -1,0 +1,150 @@
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span, Text};
+use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Wrap};
+
+use super::{command, theme, App};
+
+const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+impl App {
+    pub(super) fn draw(&mut self, f: &mut ratatui::Frame<'_>) {
+        let area = f.area();
+        let palette_h = if self.palette.open {
+            self.palette_rows().min(10) + 2
+        } else {
+            0
+        };
+        let input_h = self.input_height();
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Min(5),
+                Constraint::Length(palette_h),
+                Constraint::Length(input_h),
+                Constraint::Length(1),
+            ])
+            .split(area);
+
+        self.draw_transcript(f, chunks[0]);
+        if self.palette.open {
+            self.draw_palette(f, chunks[1]);
+        }
+        self.draw_input(f, chunks[2]);
+        self.draw_status(f, chunks[3]);
+    }
+
+    fn input_height(&self) -> u16 {
+        let rows = self.input.lines().count().max(1) as u16;
+        (rows + 2).min(8)
+    }
+
+    fn palette_rows(&self) -> u16 {
+        match &self.palette.models {
+            Some(m) => m.len() as u16,
+            None => command::matching(&self.input).len() as u16,
+        }
+    }
+
+    fn spinner(&self) -> &'static str {
+        if self.busy {
+            SPINNER[self.tick % SPINNER.len()]
+        } else {
+            " "
+        }
+    }
+
+    fn draw_palette(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
+        let (title, rows): (&str, Vec<(String, String)>) = match &self.palette.models {
+            Some(models) => (
+                " models ",
+                models.iter().map(|m| (m.clone(), String::new())).collect(),
+            ),
+            None => (
+                " commands ",
+                command::matching(&self.input)
+                    .iter()
+                    .map(|c| (format!("/{}", c.name), c.desc.to_string()))
+                    .collect(),
+            ),
+        };
+
+        let lines: Vec<Line> = rows
+            .iter()
+            .enumerate()
+            .map(|(i, (name, desc))| {
+                let selected = i == self.palette.selected;
+                let style = if selected {
+                    Style::default()
+                        .fg(theme::INTERACTIVE)
+                        .bg(theme::SELECTION_BG)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(theme::TEXT)
+                };
+                let marker = if selected { "▌" } else { " " };
+                Line::from(vec![
+                    Span::styled(format!("{marker} {name:<12}"), style),
+                    Span::styled(format!(" {desc}"), Style::default().fg(theme::TEXT_MUTED)),
+                ])
+            })
+            .collect();
+
+        let para = Paragraph::new(Text::from(lines))
+            .style(Style::default().bg(theme::BG_ELEMENT))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded)
+                    .border_style(Style::default().fg(theme::BORDER_ACTIVE))
+                    .title(Span::styled(
+                        title,
+                        Style::default()
+                            .fg(theme::ACCENT)
+                            .add_modifier(Modifier::BOLD),
+                    )),
+            );
+        f.render_widget(para, area);
+    }
+
+    fn draw_input(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
+        let para = Paragraph::new(self.input.as_str())
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded)
+                    .border_style(Style::default().fg(theme::BORDER_ACTIVE))
+                    .title(Span::styled(
+                        " instruction ",
+                        Style::default().fg(theme::INTERACTIVE),
+                    )),
+            )
+            .style(Style::default().fg(theme::TEXT))
+            .wrap(Wrap { trim: false });
+        f.render_widget(para, area);
+    }
+
+    fn draw_status(&self, f: &mut ratatui::Frame<'_>, area: Rect) {
+        let tokens = self.prompt_tokens + self.completion_tokens;
+        let hints = if self.busy {
+            format!("{} working…  Ctrl-C cancel", self.spinner())
+        } else {
+            "Enter send  ↑↓ history  PgUp/PgDn scroll  / commands".to_string()
+        };
+        let left = Line::from(vec![
+            Span::styled(
+                format!(" {} ", self.model),
+                Style::default().fg(theme::BG).bg(theme::ACCENT),
+            ),
+            Span::raw(" "),
+            Span::styled(hints, Style::default().fg(theme::TEXT_MUTED)),
+        ]);
+        let right = Line::from(Span::styled(
+            format!("{} tok ", tokens),
+            Style::default().fg(theme::TEXT_MUTED),
+        ))
+        .alignment(Alignment::Right);
+        f.render_widget(Paragraph::new(Text::from(vec![left])), area);
+        f.render_widget(Paragraph::new(Text::from(vec![right])), area);
+    }
+}
