@@ -54,11 +54,12 @@ use crate::config::Config;
 use crate::llm::Client;
 use crate::session::Session;
 
-/// Cell-motion SGR mouse tracking: wheel and clicks reach the app, but the
-/// terminal keeps drag-selection, so a plain drag copies without a toggle.
-/// crossterm's own capture adds `?1003h` (all-motion) and would steal the drag.
-const MOUSE_ON: &str = "\x1b[?1000h\x1b[?1002h\x1b[?1006h";
-const MOUSE_OFF: &str = "\x1b[?1000l\x1b[?1002l\x1b[?1006l";
+/// Button-event SGR mouse tracking: wheel and clicks reach the app, but drag
+/// is never reported, so the terminal keeps drag-selection for copy-paste with
+/// no toggle. `?1002h` (drag motion) is deliberately omitted; crossterm's own
+/// capture adds `?1003h` (all motion) and would also steal the drag.
+const MOUSE_ON: &str = "\x1b[?1000h\x1b[?1006h";
+const MOUSE_OFF: &str = "\x1b[?1000l\x1b[?1006l";
 
 /// Bracketed paste: the terminal wraps a paste in markers so newlines in a
 /// pasted block arrive as one event instead of a burst of Enter keys.
