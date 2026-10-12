@@ -3,7 +3,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use tokio::sync::mpsc::UnboundedSender;
 
-use super::{command, sidebar, App, Line2, Palette};
+use super::{command, sidebar, App, Line2};
 use crate::agent::AgentEvent;
 
 impl App {
@@ -69,6 +69,11 @@ impl App {
 
             (KeyCode::Char('t'), KeyModifiers::CONTROL) => {
                 self.show_thinking = !self.show_thinking;
+                self.status = if self.show_thinking {
+                    "thinking shown".into()
+                } else {
+                    "thinking hidden".into()
+                };
             }
 
             (KeyCode::F(2), _) => {
@@ -97,6 +102,7 @@ impl App {
             (KeyCode::Char('l'), KeyModifiers::CONTROL) => {
                 self.transcript.clear();
                 self.current_stream.clear();
+                self.status = "transcript cleared".into();
             }
 
             (KeyCode::Enter, _) => {
@@ -168,7 +174,7 @@ impl App {
     }
 
     /// Open the palette when the input is a bare slash prefix, else close it.
-    fn refresh_palette(&mut self) {
+    pub(super) fn refresh_palette(&mut self) {
         let is_slash = self.input.starts_with('/') && !self.input.contains(' ');
         if is_slash && !command::matching(&self.input).is_empty() {
             self.palette.open = true;
@@ -180,71 +186,6 @@ impl App {
         } else {
             self.palette.open = false;
             self.palette.selected = 0;
-        }
-    }
-
-    /// Handle keys while the palette is open.
-    fn handle_palette_key<F>(&mut self, key: KeyEvent, on_submit: &mut F) -> bool
-    where
-        F: FnMut(String, UnboundedSender<AgentEvent>) + Send + 'static,
-    {
-        let items = match &self.palette.models {
-            Some(models) => models.len(),
-            None => command::matching(&self.input).len(),
-        };
-
-        match (key.code, key.modifiers) {
-            (KeyCode::Esc, _) => {
-                self.palette = Palette::closed();
-                self.input.clear();
-            }
-            (KeyCode::Up, _) => {
-                self.palette.selected = self.palette.selected.saturating_sub(1);
-            }
-            (KeyCode::Down, _) => {
-                if items > 0 && self.palette.selected + 1 < items {
-                    self.palette.selected += 1;
-                }
-            }
-            (KeyCode::Enter, _) | (KeyCode::Tab, _) => {
-                self.accept_palette(on_submit);
-            }
-            (KeyCode::Char('c'), KeyModifiers::CONTROL) => return true,
-            (KeyCode::Char(c), _) => {
-                self.input.push(c);
-                self.palette.models = None;
-                self.refresh_palette();
-            }
-            (KeyCode::Backspace, _) => {
-                self.input.pop();
-                self.palette.models = None;
-                self.refresh_palette();
-            }
-            _ => {}
-        }
-        self.quit
-    }
-
-    /// Act on the highlighted palette entry.
-    fn accept_palette<F>(&mut self, on_submit: &mut F)
-    where
-        F: FnMut(String, UnboundedSender<AgentEvent>) + Send + 'static,
-    {
-        if let Some(models) = self.palette.models.take() {
-            if let Some(name) = models.get(self.palette.selected) {
-                self.switch_model(name);
-            }
-            self.palette = Palette::closed();
-            self.input.clear();
-            return;
-        }
-
-        let matched = command::matching(&self.input);
-        if let Some(cmd) = matched.get(self.palette.selected) {
-            let name = cmd.name;
-            self.palette = Palette::closed();
-            self.input.clear();
-            self.run_slash(name, on_submit);
         }
     }
 }

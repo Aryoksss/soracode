@@ -235,7 +235,12 @@ followed them is.
 | `↑` / `↓` | walk back and forward through submitted instructions |
 | `Ctrl-U` | clear the input line |
 | `PageUp` / `PageDown` | scroll the transcript |
-| `End` | jump to the newest output and follow it |
+| `Home` / `End` | jump to the top / follow the newest output |
+| `Tab` | focus the session sidebar (arrows move, `Enter` resumes) |
+| `Ctrl-B` | show or hide the session sidebar |
+| `Ctrl-T` | show or hide the model's thinking |
+| `Ctrl-L` | clear the transcript pane |
+| `F2` | release mouse capture so drag-select can copy |
 | `Ctrl-C` or `Ctrl-Q` | quit |
 
 On exit the TUI prints the session id and the exact command to resume it, so a
