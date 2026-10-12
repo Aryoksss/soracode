@@ -5,6 +5,7 @@ pub mod fs;
 pub mod host;
 pub mod http;
 pub mod notes;
+pub mod pentest;
 pub mod shell;
 pub mod subagent;
 
@@ -39,6 +40,8 @@ pub struct ToolContext {
     pub depth: u32,
     /// Shared notes store.
     pub notes: notes::Notes,
+    /// Shared offensive engagement state.
+    pub engagement: crate::engagement::Engagement,
     /// Bridge used by the subagent tool to start nested agents.
     pub spawner: Option<Arc<dyn subagent::Spawner>>,
 }
@@ -64,6 +67,9 @@ impl Registry {
             Box::new(notes::NoteTool::new(ctx.clone())),
             Box::new(notes::RecallTool::new(ctx.clone())),
             Box::new(host::ToolsTool::new(ctx.clone())),
+            Box::new(pentest::NmapParseTool::new(ctx.clone())),
+            Box::new(pentest::StateUpdateTool::new(ctx.clone())),
+            Box::new(pentest::StateQueryTool::new(ctx.clone())),
         ];
 
         if ctx.config.subagents_enabled && ctx.depth < ctx.config.subagent_max_depth {

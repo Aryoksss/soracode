@@ -90,6 +90,7 @@ mod tests {
             workspace: workspace.to_path_buf(),
             depth: 0,
             notes: Notes::default(),
+            engagement: crate::engagement::Engagement::in_memory().unwrap(),
             spawner: None,
         }
     }

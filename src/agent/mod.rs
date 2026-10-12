@@ -54,6 +54,7 @@ impl Agent {
             workspace: spec.config.workspace.clone(),
             depth: spec.depth,
             notes: notes.clone(),
+            engagement: session.engagement()?,
             spawner: spec.spawner,
         };
 

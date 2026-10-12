@@ -94,6 +94,15 @@ impl Session {
         self.inner.lock().unwrap_or_else(|e| e.into_inner())
     }
 
+    /// Open the engagement store over this session's database connection, so
+    /// offensive state shares the session's lifetime and file.
+    ///
+    /// # Errors
+    /// Propagates database errors.
+    pub fn engagement(&self) -> Result<crate::engagement::Engagement> {
+        crate::engagement::Engagement::from_conn(&self.inner, &self.id)
+    }
+
     /// The active session id.
     #[must_use]
     pub fn id(&self) -> &str {

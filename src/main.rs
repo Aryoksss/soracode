@@ -8,6 +8,7 @@ mod agent;
 mod cli;
 mod commands;
 mod config;
+mod engagement;
 mod error;
 mod llm;
 mod models;
