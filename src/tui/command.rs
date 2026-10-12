@@ -33,6 +33,8 @@ pub enum Action {
     ShowHelp,
     /// Remove the last submitted turn from the session and transcript.
     Undo,
+    /// Write the full session transcript to a Markdown file.
+    Export,
     /// Clear the transcript pane.
     Clear,
     /// Leave the TUI.
@@ -125,6 +127,11 @@ pub const COMMANDS: &[Command] = &[
         name: "undo",
         desc: "remove the last turn from the session and view",
         action: Action::Undo,
+    },
+    Command {
+        name: "export",
+        desc: "write the session to a Markdown file (/export [path])",
+        action: Action::Export,
     },
     Command {
         name: "clear",

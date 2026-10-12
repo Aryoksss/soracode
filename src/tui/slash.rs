@@ -27,6 +27,10 @@ impl App {
         match cmd.action {
             command::Action::Quit => self.quit = true,
             command::Action::Undo => self.undo(),
+            command::Action::Export => {
+                let default = format!("soracode-{}.md", self.session_id);
+                self.export(arg, &default);
+            }
             command::Action::Clear => {
                 self.transcript.clear();
                 self.current_stream.clear();

@@ -6,6 +6,7 @@ mod command;
 mod copy;
 mod diff;
 mod draw;
+mod export;
 mod keys;
 mod markdown;
 mod mention;
