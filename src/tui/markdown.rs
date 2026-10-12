@@ -142,7 +142,7 @@ fn emphasis(text: &str, base: Color, out: &mut Vec<Span<'static>>) {
             rest = after;
             continue;
         }
-        if let Some((label, after)) = delimited(rest, "*").or_else(|| delimited(rest, "_")) {
+        if let Some((label, after)) = delimited(rest, "*").or_else(|| underscore_em(rest)) {
             out.push(Span::styled(
                 label.to_string(),
                 Style::default().fg(base).add_modifier(Modifier::ITALIC),
@@ -157,6 +157,26 @@ fn emphasis(text: &str, base: Color, out: &mut Vec<Span<'static>>) {
         ));
         rest = &rest[take..];
     }
+}
+
+/// Underscore emphasis, but never intraword: `my_under_score_file.txt` keeps
+/// its underscores, while `_note_` is italic. Follows CommonMark's rule that a
+/// `_` surrounded by alphanumerics neither opens nor closes emphasis.
+fn underscore_em(s: &str) -> Option<(&str, &str)> {
+    let body = s.strip_prefix('_')?;
+    if body.starts_with('_') {
+        return None;
+    }
+    let end = body.find('_')?;
+    if end == 0
+        || body[end + 1..]
+            .chars()
+            .next()
+            .is_some_and(char::is_alphanumeric)
+    {
+        return None;
+    }
+    Some((&body[..end], &body[end + 1..]))
 }
 
 fn link(s: &str) -> Option<(&str, &str, &str)> {

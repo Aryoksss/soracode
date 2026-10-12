@@ -73,3 +73,16 @@ fn plain_pipe_text_is_not_a_table() {
     assert_eq!(out.len(), 1);
     assert!(!out[0].contains('─'));
 }
+
+#[test]
+fn intraword_underscores_are_not_emphasis() {
+    let text = render("see my_under_score_file.txt now").join("\n");
+    assert!(text.contains("my_under_score_file.txt"), "got: {text}");
+}
+
+#[test]
+fn underscore_emphasis_still_works_at_word_boundaries() {
+    let text = render("a _note_ here").join("\n");
+    assert!(text.contains("note"), "got: {text}");
+    assert!(!text.contains("_note_"), "got: {text}");
+}
