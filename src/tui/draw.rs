@@ -106,11 +106,7 @@ impl App {
                 } else {
                     theme::PANEL_BG
                 };
-                let name_fg = if selected {
-                    theme::ACCENT
-                } else {
-                    theme::TEXT
-                };
+                let name_fg = if selected { theme::ACCENT } else { theme::TEXT };
                 let marker = if selected { "▌" } else { " " };
                 Line::from(vec![
                     Span::styled(
