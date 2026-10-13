@@ -33,9 +33,18 @@ pub fn search_dirs(workspace: &Path) -> Vec<PathBuf> {
 /// with the most specific directory winning.
 #[must_use]
 pub fn discover(workspace: &Path) -> Vec<Skill> {
+    discover_in(&search_dirs(workspace))
+}
+
+/// Discover packs across an explicit, ordered set of directories.
+///
+/// Later directories win on a name clash. Exposed so callers and tests can
+/// pin the search set instead of inheriting the host's config directory.
+#[must_use]
+pub fn discover_in(dirs: &[PathBuf]) -> Vec<Skill> {
     let mut found: Vec<Skill> = Vec::new();
-    for dir in search_dirs(workspace) {
-        let Ok(entries) = std::fs::read_dir(&dir) else {
+    for dir in dirs {
+        let Ok(entries) = std::fs::read_dir(dir) else {
             continue;
         };
         for entry in entries.flatten() {

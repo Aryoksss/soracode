@@ -12,6 +12,7 @@ mod engagement;
 mod error;
 mod llm;
 mod mcp;
+mod memory;
 mod models;
 mod prompt;
 mod runtime;

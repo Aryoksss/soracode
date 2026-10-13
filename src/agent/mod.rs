@@ -86,6 +86,9 @@ impl Agent {
                 inventory.as_ref(),
             );
             env.push_str(&crate::skills::catalogue(&spec.config.workspace));
+            if let Some(memory) = crate::memory::block(&spec.config.workspace) {
+                env.push_str(&memory);
+            }
             messages.push(Message::System { content: env });
             messages.push(Message::System {
                 content: prompt::mode_block(spec.config.mode).to_string(),

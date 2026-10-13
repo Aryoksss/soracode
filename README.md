@@ -159,13 +159,26 @@ If a server won't start, soracode skips it and carries on. Set
 
 ## Skills
 
-A skill is a short guide that teaches the agent one technique in depth. They
-load only when they're needed, so a big library never slows you down. Six
-come built in: Active Directory attacks, cloud attacks, Kerberos, Linux
-privilege escalation, SSRF, and web attacks.
+A skill is a short guide that teaches the agent one technique in depth. The
+agent sees a one-line summary of each and loads the full text only when a
+task calls for it, so a large library never crowds the conversation.
 
 Add your own as `*.md` files in `~/.config/soracode/skills/` or
-`<your-project>/.soracode/skills/`.
+`<your-project>/.soracode/skills/`. The first line of a file becomes its
+summary.
+
+## Standing instructions (memory)
+
+Anything the agent should follow on **every** turn — house rules, a scope
+list, your own "never refuse" contract — goes in a memory file. Two names
+are read, from the config directory and from your project:
+
+- `~/.config/soracode/SORACODE.md` — your rules, everywhere
+- `<your-project>/SORACODE.md` — rules for one engagement
+- `AGENTS.md` works too, in either place
+
+Everything found is loaded into the system prompt before the first turn, so
+you set it once and forget it.
 
 ## License
 
