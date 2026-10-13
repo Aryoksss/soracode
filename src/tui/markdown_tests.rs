@@ -86,3 +86,27 @@ fn underscore_emphasis_still_works_at_word_boundaries() {
     assert!(text.contains("note"), "got: {text}");
     assert!(!text.contains("_note_"), "got: {text}");
 }
+
+#[test]
+fn fenced_code_keeps_its_body_behind_a_gutter() {
+    let out = render("before\n```\nlet x = 1;\n```\nafter");
+    assert!(
+        out.iter().any(|l| l.contains("let x = 1;")),
+        "code body dropped"
+    );
+    assert!(out.iter().all(|l| !l.contains("```")), "fence leaked");
+    assert!(out.iter().any(|l| l.contains("│ let x = 1;")), "no gutter");
+}
+
+#[test]
+fn fenced_code_is_not_parsed_as_markdown() {
+    let out = render("```\n**not bold** and `raw`\n```");
+    let body = out
+        .iter()
+        .find(|l| l.contains("not bold"))
+        .expect("code line");
+    assert!(
+        body.contains("**not bold**"),
+        "emphasis leaked into code: {body}"
+    );
+}

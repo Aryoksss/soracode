@@ -8,7 +8,23 @@ use super::theme;
 pub(super) fn push_markdown_indented(lines: &mut Vec<Line>, text: &str, base: Color, indent: &str) {
     let rows: Vec<&str> = text.lines().collect();
     let mut i = 0;
+    let mut fence = false;
     while i < rows.len() {
+        if rows[i].trim_start().starts_with("```") {
+            fence = !fence;
+            i += 1;
+            continue;
+        }
+        if fence {
+            let mut line = code_line(rows[i]);
+            if !indent.is_empty() {
+                line.spans
+                    .insert(0, Span::styled(indent.to_string(), Style::default()));
+            }
+            lines.push(line);
+            i += 1;
+            continue;
+        }
         if let Some(end) = table::table_end(&rows, i) {
             let start = lines.len();
             table::push_table(lines, &rows[i..end], base);
@@ -26,6 +42,14 @@ pub(super) fn push_markdown_indented(lines: &mut Vec<Line>, text: &str, base: Co
         lines.push(line);
         i += 1;
     }
+}
+
+/// One line inside a fenced code block: a dim gutter and code-coloured text.
+fn code_line(raw: &str) -> Line<'static> {
+    Line::from(vec![
+        Span::styled("  │ ", Style::default().fg(theme::border())),
+        Span::styled(raw.to_string(), Style::default().fg(theme::info())),
+    ])
 }
 
 /// Prefix each line with an unstyled indent span.
