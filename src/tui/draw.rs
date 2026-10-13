@@ -184,7 +184,7 @@ impl App {
         };
         let body: Text = if self.input.is_empty() {
             Text::from(Line::from(vec![
-                Span::styled(" > ", Style::default().fg(theme::accent())),
+                Span::styled(" > ", Style::default().fg(theme::role_user())),
                 Span::styled(
                     "ask about a target, or type / for commands",
                     Style::default().fg(theme::text_dim()),
@@ -198,8 +198,8 @@ impl App {
                     .map(|(i, line)| {
                         let prompt = if i == 0 { " > " } else { "   " };
                         Line::from(vec![
-                            Span::styled(prompt, Style::default().fg(theme::accent())),
-                            Span::styled(line.to_string(), Style::default().fg(theme::text())),
+                            Span::styled(prompt, Style::default().fg(theme::role_user())),
+                            Span::styled(line.to_string(), Style::default().fg(theme::role_user())),
                         ])
                     })
                     .collect::<Vec<_>>(),

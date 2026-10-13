@@ -48,7 +48,7 @@ impl Default for Theme {
             error: Color::Rgb(240, 130, 130),
             warning: Color::Rgb(230, 180, 120),
             info: Color::Rgb(130, 175, 215),
-            role_user: Color::Rgb(150, 145, 140),
+            role_user: Color::Rgb(139, 176, 232),
             role_assistant: Color::Rgb(217, 119, 87),
             role_tool: Color::Rgb(130, 175, 215),
         }

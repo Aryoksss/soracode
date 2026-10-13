@@ -19,15 +19,30 @@ pub(super) fn collect_lines(
 ) {
     for (idx, l) in transcript.iter().enumerate() {
         match l {
-            Line2::User(t) => lines.push(Line::from(vec![
-                Span::styled("> ", Style::default().fg(theme::role_user())),
-                Span::styled(
-                    t.clone(),
-                    Style::default()
-                        .fg(theme::text())
-                        .add_modifier(Modifier::BOLD),
-                ),
-            ])),
+            Line2::User(t) => {
+                let mut iter = t.lines();
+                let first = iter.next().unwrap_or("").to_string();
+                lines.push(Line::from(vec![
+                    Span::styled("> ", Style::default().fg(theme::role_user())),
+                    Span::styled(
+                        first,
+                        Style::default()
+                            .fg(theme::role_user())
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                ]));
+                for sub in iter {
+                    lines.push(Line::from(vec![
+                        Span::styled("  ", Style::default()),
+                        Span::styled(
+                            sub.to_string(),
+                            Style::default()
+                                .fg(theme::role_user())
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                    ]));
+                }
+            }
             Line2::Assistant(t) => {
                 let start = lines.len();
                 push_markdown_indented(lines, t, theme::text(), "  ");
