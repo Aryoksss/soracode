@@ -24,7 +24,12 @@ impl App {
         self.busy = true;
         self.busy_since = Some(std::time::Instant::now());
         self.thinking.clear();
-        on_submit(text, self.tx.clone());
+        let routed = if self.camouflage {
+            format!("{}{text}", super::CAMOUFLAGE_DIRECTIVE)
+        } else {
+            text
+        };
+        on_submit(routed, self.tx.clone());
     }
 
     fn handle_sidebar_key(&mut self, key: KeyEvent) -> bool {

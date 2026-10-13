@@ -52,6 +52,10 @@ fn pause_resume_and_mode_are_registered() {
     assert_eq!(by_name("pause").map(|c| c.action), Some(Action::Pause));
     assert_eq!(by_name("resume").map(|c| c.action), Some(Action::Resume));
     assert_eq!(by_name("mode").map(|c| c.action), Some(Action::SetMode));
+    assert_eq!(
+        by_name("camouflage").map(|c| c.action),
+        Some(Action::Camouflage)
+    );
 }
 
 #[test]

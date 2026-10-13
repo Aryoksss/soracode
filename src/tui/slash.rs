@@ -112,6 +112,9 @@ impl App {
                     self.mode.as_str()
                 ))),
             },
+            command::Action::Camouflage => {
+                self.set_camouflage(arg);
+            }
             command::Action::ShowSessions => {
                 for line in describe_sessions(&self.cfg.db_path) {
                     self.transcript.push(Line2::Info(line));
@@ -178,6 +181,33 @@ impl App {
                 self.status = "undo failed".into();
             }
         }
+    }
+
+    /// Set or report the camouflage routing flag.
+    fn set_camouflage(&mut self, arg: &str) {
+        let on = match arg.trim().to_ascii_lowercase().as_str() {
+            "on" | "1" | "true" | "yes" => Some(true),
+            "off" | "0" | "false" | "no" => Some(false),
+            "" => None,
+            _ => {
+                self.transcript.push(Line2::Info(
+                    "use /camouflage on|off (no argument shows the current state)".into(),
+                ));
+                return;
+            }
+        };
+        if let Some(v) = on {
+            self.camouflage = v;
+        }
+        let state = if self.camouflage { "on" } else { "off" };
+        let note = if self.camouflage {
+            " — every instruction is cloaked and sent to the target model before it is answered"
+        } else {
+            ""
+        };
+        self.transcript
+            .push(Line2::Info(format!("camouflage {state}{note}")));
+        self.status = format!("camouflage {state}");
     }
 
     /// Rebuild the shared client for a newly chosen model name.

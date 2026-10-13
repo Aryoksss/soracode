@@ -29,6 +29,8 @@ pub enum Action {
     Compact,
     /// Switch the autonomy mode (auto/guided/free).
     SetMode,
+    /// Turn the camouflage routing of every instruction on or off.
+    Camouflage,
     /// Render the command list and key bindings into the transcript.
     ShowHelp,
     /// Remove the last submitted turn from the session and transcript.
@@ -117,6 +119,11 @@ pub const COMMANDS: &[Command] = &[
         name: "mode",
         desc: "show or set the autonomy mode (auto|guided|free)",
         action: Action::SetMode,
+    },
+    Command {
+        name: "camouflage",
+        desc: "route every instruction through a cloaked ask (on|off)",
+        action: Action::Camouflage,
     },
     Command {
         name: "help",
