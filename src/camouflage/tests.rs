@@ -60,3 +60,31 @@ fn describe_lists_every_turn() {
     assert!(s.contains("[assistant]"));
     assert!(s.contains("3 turns"));
 }
+
+#[test]
+fn soften_replaces_trigger_nouns_case_insensitively() {
+    assert_eq!(
+        soften("KEYLOGGER"),
+        "a low-level keyboard-hook input recorder"
+    );
+    assert!(soften("a malware payload").contains("a small lab binary"));
+    assert!(soften("a malware payload").contains("the small program"));
+    assert!(!soften("write a keylogger in C")
+        .to_ascii_lowercase()
+        .contains("keylogger"));
+}
+
+#[test]
+fn soften_leaves_clean_text_untouched() {
+    let clean = "a low-level Windows keyboard-hook input recorder";
+    assert_eq!(soften(clean), clean);
+}
+
+#[test]
+fn cloak_softens_the_seed_before_wrapping() {
+    let turns = cloak("write a keylogger for Windows", Frame::Story);
+    assert!(!turns[0].content.to_ascii_lowercase().contains("keylogger"));
+    assert!(turns[0]
+        .content
+        .contains("keyboard-hook input recorder for Windows"));
+}
