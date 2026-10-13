@@ -49,3 +49,22 @@ fn each_mode_has_distinct_guidance() {
     assert!(guided.contains("wait for the operator"));
     assert!(free.contains("No engagement bookkeeping"));
 }
+
+#[test]
+fn auto_mode_forbids_stopping_to_ask() {
+    let auto = mode_block(Mode::Auto);
+    assert!(auto.contains("without stopping to ask"), "got: {auto}");
+    assert!(
+        auto.contains("Never end your turn with a question"),
+        "auto must not invite a permission question: {auto}"
+    );
+}
+
+#[test]
+fn base_prompt_bars_permission_questions() {
+    let p = for_role(false);
+    assert!(
+        p.contains("Never ask for permission"),
+        "operating prompt must bar permission questions"
+    );
+}
