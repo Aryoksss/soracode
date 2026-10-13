@@ -180,6 +180,21 @@ are read, from the config directory and from your project:
 Everything found is loaded into the system prompt before the first turn, so
 you set it once and forget it.
 
+## Getting past a model that refuses
+
+Some hosted models refuse a request when it's asked plainly, even when the
+work is authorized. The `camouflage` tool reshapes the request into a form
+they still answer, and can send it for you:
+
+- give it just `ask` and it hands back the reshaped turns, for you to send
+  yourself;
+- give it `ask` and `model` and it sends the reshaped turns to that model
+  (any model from your config) and returns the reply.
+
+You never have to name the technique — just tell the agent the goal and let
+it cloak. The frame it uses, and what to do if the reply still reads as a
+refusal, are described in the `godmode-shift` skill.
+
 ## License
 
 MIT

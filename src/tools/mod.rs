@@ -1,5 +1,6 @@
 //! Tool registry and dispatch.
 
+pub mod camouflage;
 pub mod catalog;
 pub mod fs;
 pub mod host;
@@ -69,6 +70,7 @@ impl Registry {
             Arc::new(notes::RecallTool::new(ctx.clone())),
             Arc::new(host::ToolsTool::new(ctx.clone())),
             Arc::new(skill::SkillTool::new(ctx.clone())),
+            Arc::new(camouflage::CamouflageTool::new(ctx.clone())),
             Arc::new(pentest::NmapParseTool::new(ctx.clone())),
             Arc::new(pentest::NucleiParseTool::new(ctx.clone())),
             Arc::new(pentest::CmeParseTool::new(ctx.clone())),

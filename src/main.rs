@@ -5,6 +5,7 @@
 //!   * interactive TUI: `soracode` (or `soracode -i` and keep typing)
 
 mod agent;
+mod camouflage;
 mod cli;
 mod commands;
 mod config;
